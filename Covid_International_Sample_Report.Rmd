@@ -61,7 +61,365 @@ h4.date {
 
 ## Loading the dataset, required R packages and data wrangling
 
-INTERNATIONAL DATASET_12 Oct_final.sav
+
+```{r loading packages and dataset, message=FALSE, warning=FALSE}
+# The following packages might need to be installed onto your version 
+# of R prior to the running of the code below.
+
+library(udpipe)
+library(MASS)
+library(lavaan)
+library(processR)
+library(wordcloud)
+library(corrplot)
+library(tidytext)
+library(tidyverse)
+library(haven)
+library(jmv)
+
+# We load the original Czech dataset (in SPSS format) from a local directory.
+data <- zap_labels(haven::read_sav(file = "INTERNATIONAL DATASET_12 Oct_final.sav"))
+
+# For use in correlation analysis, we duplicate the dataset under name data_corr
+data_corr <- data
+
+# We also try to limit the decimals to three significant figures
+options(digits = 3)
+
+sjPlot::view_df(data)
+
+```
+
+
+```{r}
+# Filtering out the Czech dataset, renaming variables to identical ones as before
+data <- data %>% 
+  transmute(country = recode_factor(as_factor(Country),
+            `1` = "IT",
+            `2` = "FR",
+            `3` = "PL",
+            `4` = "UK",
+            `5` = "CZ",
+            `6` = "SW"),
+            q01_gender = recode_factor(as_factor(Q3),
+            `1` = "female",
+            `2` = "male",
+            `3` = "other"),
+            q02_age = Q4,
+            q02_age_group = recode_factor(as_factor(Q4_AGE_r),
+            `1` = "16-29 years",
+            `2` = "30-49 years",
+            `3` = "50-64 years",
+            `4` = "65+"),
+            q03_relationship_type = recode_factor(as_factor(Q5),
+            `1` = "single",
+            `2` = "relationship",
+            `3` = "married",
+            `4` = "divorced",
+            `5` = "widowed"),
+            q04_children = recode_factor(as_factor(Q6),
+            `1` = "yes",
+            `2` = "no"),
+            q11_education = recode_factor(as_factor(Q13R),
+            `1` = "low",
+            `2` = "medium",
+            `3` = "high"),
+            q18_02_soc_media = recode_factor(as_factor(replace_na(Q21_2, 0)),
+            `0` = "no",
+            `1` = "yes"),
+            q20_public_info = recode_factor(as_factor(Q23),
+            `1` = "yes",
+            `2` = "no",
+            `99` = "do_not_know"),
+            q34_02_face_mask = recode_factor(as_factor(Q37_2),
+            `1` = "yes",
+            `2` = "no"),
+            q34_07_hand_washing = recode_factor(as_factor(Q37_7),
+            `1` = "yes",
+            `2` = "no"),
+            q35_01_contact_close_family = recode_factor(as_factor(Q38_1),
+            `1` = "less_often",
+            `2` = "as_before",
+            `3` = "more_often"),
+            q35_03_contact_friends = recode_factor(as_factor(Q38_3),
+            `1` = "less_often",
+            `2` = "as_before",
+            `3` = "more_often"),
+            q36_econ_worry = recode_factor(as_factor(Q39),
+            `1` = "very_serious",
+            `2` = "serious",
+            `3` = "limited"),
+            q38_alcohol = recode_factor(as_factor(Q42),
+            `1` = "yes",
+            `2` = "no"),
+            q40_smoking = recode_factor(as_factor(Q44),
+            `1` = "yes",
+            `2` = "no"),
+            q42_sport = recode_factor(as_factor(Q46),
+            `1` = "yes",
+            `2` = "no"),
+            q47_self_reporting_health = recode_factor(as_factor(Q50),
+            `1` = "excellent",
+            `2` = "good",
+            `3` = "neutral",
+            `4` = "bad",
+            `5` = "very_bad"),
+            q48_chronic_illness = recode_factor(as_factor(Q51),
+            `1` = "yes",
+            `2` = "no"),
+            q49_health_limitations = recode_factor(as_factor(Q52),
+            `1` = "limits",
+            `2` = "partially_limits",
+            `3` = "no_limits"),
+            q30_concern_infection_covid = Q33,
+            q31_concern_infection_friends = Q34,
+            q33_01_concern_situation = Q36_1,
+            q33_02_concern_low_control = Q36_2,
+            q33_03_concern_survival_covid = Q36_3,
+            q33_04_concern_change_employment = Q36_4,
+            q33_05_concern_infecting_others = Q36_5,
+            PHQ8 = PHQ8_cat,
+            PHQ8_group = recode_factor(as_factor(PHQ8_cat),
+            `0` = "no_depression",
+            `1` = "minimal",
+            `2` = "mild",
+            `3` = "moderate",
+            `4` = "moderate_severe",
+            `5` = "severe")) %>% 
+  filter(country != "CZ", q01_gender != "other")
+
+
+```
+
+```{r PHQ8 descriptives}
+# To summarize the dependent continuous variable, we use the descriptives() 
+# function from the jmv package.
+
+descriptives <- jmv::descriptives(
+    data = data,
+    vars = "PHQ8",
+    freq = TRUE,
+    box = TRUE,
+    median = FALSE,
+    range = TRUE,
+    sd = TRUE,
+    quart = TRUE)
+```
+
+### PHQ8 results table {.tabset .tabset-pills}
+
+#### Plots
+
+```{r, comment = ""}
+descriptives$plots
+```
+
+#### Descriptives
+
+```{r, comment = ""}
+descriptives$descriptives
+```
+
+```{r sample demography descriptives}
+# To summarize the key demographic variables, we use the descriptives() 
+# function from the jmv package.
+
+demo_descriptives <- jmv::descriptives(
+    data = data,
+    vars = vars("q01_gender",
+                "q02_age_group",
+                "q03_relationship_type",
+                "q04_children",
+                "q11_education"),
+    bar = TRUE,
+    freq = TRUE,
+    missing = FALSE,
+    mean = FALSE,
+    median = FALSE,
+    sd = FALSE,
+    min = FALSE,
+    max = FALSE)
+```
+
+
+### Demographic characteristics results table {.tabset .tabset-pills}
+
+#### Plots
+
+```{r, comment = ""}
+demo_descriptives$plots
+```
+
+#### Frequencies
+
+```{r, comment = ""}
+demo_descriptives$frequencies	
+```
 
 
 
+```{r theory-driven regression model, comment = ""}
+linreg_theory <- jmv::linReg(
+    data = data,
+    dep = "PHQ8_t",
+    covs = "q02_age",
+    factors = vars("q01_gender",
+                   "q03_relationship_type",
+                   "q04_children", 
+                   "q11_education", 
+                   "q18_02_soc_media", 
+                   "q20_public_info",
+                   "q34_02_face_mask",
+                   "q34_07_hand_washing",
+                   "q35_01_contact_close_family", 
+                   "q35_03_contact_friends", 
+                   "q36_econ_worry",
+                   "q38_alcohol", 
+                   "q40_smoking", 
+                   "q42_sport", 
+                   "q47_self_reporting_health", 
+                   "q48_chronic_illness",
+                   "q49_health_limitations"),
+    blocks = list(
+        list(
+            "q01_gender",
+            "q02_age",
+            "q03_relationship_type",
+            "q04_children",
+            "q11_education"),
+        list(
+            "q18_02_soc_media",
+            "q20_public_info",
+            "q34_02_face_mask",
+            "q34_07_hand_washing",
+            "q36_econ_worry"),
+        list(
+            "q40_smoking",
+            "q42_sport",
+            "q38_alcohol",
+            "q35_01_contact_close_family",
+            "q35_03_contact_friends"),
+        list(
+            "q47_self_reporting_health",
+            "q48_chronic_illness",
+            "q49_health_limitations")),
+    refLevels = list(
+        list(
+            var = "q01_gender",
+            ref = "female"),
+        list(
+            var = "q04_children",
+            ref = "no"),
+         list(
+            var = "q20_public_info",
+            ref = "no"),
+        list(
+            var = "q34_02_face_mask",
+            ref = "no"),
+        list(
+            var = "q34_07_hand_washing",
+            ref = "no"),
+        list(
+            var = "q36_econ_worry",
+            ref = "very_serious"),
+        list(
+            var = "q42_sport",
+            ref = "no"),
+        list(
+            var = "q40_smoking",
+            ref = "yes"),
+        list(
+            var = "q38_alcohol",
+            ref = "yes"),
+        list(
+            var = "q35_01_contact_close_family",
+            ref = "less_often"),
+        list(
+            var = "q35_03_contact_friends",
+            ref = "less_often"),
+        list(
+            var = "q18_02_soc_media",
+            ref = "yes"),
+        list(
+            var = "q03_relationship_type",
+            ref = "single"),
+        list(
+            var = "q47_self_reporting_health",
+            ref = "very_bad"),
+        list(
+            var = "q49_health_limitations",
+            ref = "limits"),
+        list(
+            var = "q11_education",
+            ref = "low"),
+        list(
+            var = "q48_chronic_illness",
+            ref = "yes")),
+    r2Adj = TRUE,
+    aic = TRUE,
+    bic = TRUE,
+    rmse = TRUE,
+    modelTest = TRUE,
+    anova = TRUE,
+    ci = TRUE,
+    stdEst = TRUE,
+    ciStdEst = TRUE,
+    durbin = TRUE,
+    collin = TRUE)
+```
+
+### Regression model performance {.tabset .tabset-pills}
+
+#### Model fit measures
+
+```{r, comment = ""}
+linreg_theory$modelFit
+```
+
+#### Model comparisons
+
+```{r, comment = ""}
+linreg_theory$modelComp					
+```
+
+#### Model specific results
+
+```{r, comment = ""}
+linreg_theory$models				
+```
+
+
+```{r automatic stepwise regression model, comment = ""}
+# We are using the MASS package, which contains stepAIC() function for stepwise 
+# regression model selection. We again filter the dataset to only the variables 
+# specified with hypotheses
+
+linreg_stepwise <- data %>% dplyr::select(-c(id, 
+                                         q02_age_group,
+                                         q30_concern_infection_covid,
+                                         q31_concern_infection_friends,                
+                                         q33_01_concern_situation, 
+                                         q33_02_concern_low_control, 
+                                         q33_03_concern_survival_covid, 
+                                         q33_04_concern_change_employment, 
+                                         q33_05_concern_infecting_others,
+                                         q50_comment,
+                                         PHQ8))
+
+# Fit the full linear model using lm() function from base R
+full.model_MASS <- lm(PHQ8_t ~.,
+                      data = linreg_stepwise,
+                      na.action = na.omit)
+
+# Stepwise regression model using MASS package, ranks on AIC
+step.model_AIC <- stepAIC(full.model_MASS, 
+                          direction = "both", 
+                          trace = FALSE)
+
+# Stepwise regression model using MASS package, ranks on BIC
+step.model_BIC <- stepAIC(full.model_MASS, 
+                          direction = "both",
+                          trace = FALSE, 
+                          k = log(nrow(linreg_stepwise)))
+
+```
