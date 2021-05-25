@@ -1,0 +1,1299 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "Czech sample report v1.0"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+bibliography: bibliography.bib
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(out.width = "90%", echo = TRUE)
+```
+
+```{css, echo=FALSE}
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+  max-height: 600px;
+  overflow-y: auto;
+}
+#TOC {
+  font-size: 12px;
+}
+h1.title {
+  font-size: 28px;
+}
+h1 {
+  font-size: 23px;
+}
+h2 {
+  font-size: 18px;
+}
+h3 {
+  font-size: 16px;
+}
+h4 {
+  font-size: 12px;
+}
+h4.author {
+  font-style: italic;
+  font-size: 16px;
+}
+h4.date {
+  font-size: 16px;
+}
+```
+
+# Study background
+
+## Goal of the study
+
+This research project is based on the umbrella project "Pandemic Emergency in Social Perspective. Evidence from a large Web-survey research", designed and organized by principal investigators Linda Lombi (Università Cattolica del Sacro Cuore, Milan) and Marco Terraneo (Università Bicocca-Milano).
+
+The principal goal of the international cross-sectional study is to explore the predictors of depression within the European context of the Covid-19 pandemic, specifically during the lockdown and social distancing period of March-April 2020.
+
+Our team has decided to primarily focus on the impact of modifiable behavioral/lifestyle factors, such as exercise, alcohol and tobacco consumption, but, also, the usage of social media as a source of information about the pandemic. Our intention is to create and validate a depression model that these literature-based predictors should predict. Furthermore, we intend to explore the indirect pathway between social media consumption and depression mediated by the level of Covid-19-related concern/anxiety.
+
+Supplementary data for this project, such as the survey questionnaire, original dataset and other key documents are accessible in our [Open Science Framework repository](https://osf.io/qs7zn/?view_only=91cf62078f614f519981d19d616c5644). The R Markdown code is also acessible on our [GitHub repository](https://github.com/opop999/Covid).
+
+## Sampling
+
+Given the rapidly-developing nature of the Covid-19 pandemic, the principal research team (Lombi & Terraneo) chose a convenience sample, recruited through Facebook national groups using a snowballing technique. The goal was to collect at least 1000 responses per country.
+
+The data collection has been conducted between March-April 2020 in the following eight countries: Italy, France, Germany, Spain, United Kingdom, Sweden, Poland, Czech Republic and were conducted by the members of the respective national teams (please see the research protocol in the [OSF repository](https://osf.io/qs7zn/?view_only=91cf62078f614f519981d19d616c5644).
+
+This relatively non-random sampling is likely to result in a non-representative sample for the national populations. This is one of the limitations of this research and is reflected in the "data collection and sampling" part of the research protocol outlined by Linda Lombi and Marco Terraneo.
+
+This approach, therefore, does not aim to compare country-samples, but, rather, to compare segments of the national samples, with a particular focus on the vulnerable social groups, determined by socio-demographic, lifestyle professional and living condition aspects.
+
+## Analysis plan
+
+In order to comply with the principles of Open Science, we intend to split our analysis to two parts.
+
+1.  Within the first part, we test the literature-derived hypotheses on the Czech sample (n=1484) of the international study and develop models. We also explore the dataset (here referred to as `COV19_05_agroup.sav`) inductively and consider the formulation of additional hypotheses for other predictors that might have been missed before the beginning of the study. To lower the chance of overfitting, we only consider the adding additional variables that have an empirical support based on our review of the existing literature. Towards the end of the first part of the project, we pre-register our hypotheses and other key research information (including this reproducible R code) at the [OSF Registries](https://osf.io/registries). While some of the team members have briefly interacted with the international dataset, they have not been involved in the pre-registration and hypothesis forming process in order to reduce biases by separating the exploratory and confirmatory phases of the research.
+2.  In the second we will access the international dataset, which will include data from all of the countries that gathered at least 1000 responses. We will conduct confirmatory analyses, testing our models on this international sample, from which we will exclude the Czech sub-sample.
+
+## Core hypotheses
+
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| Alternative Hypotheses                                                                                                                                                                                                        | Variable                        | Literature                                                                                           |
++===============================================================================================================================================================================================================================+=================================+======================================================================================================+
+| H1: **Female** gender is associated with **higher** levels of depression.                                                                                                                                                     | q01                             | [@Salk2017; @Kowal2020; @Wang2020b; @Luo2020; @González-Sanguino2020]                                |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H2: **Higher** age is associated with **lower** levels of depression.                                                                                                                                                         | q02                             | [@Kowal2020; @Shevlin2020; @Taylor2008; @Losada-Baltar2020; @González-Sanguino2020; @Carstensen2006] |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H3: People **in a relationship** experience **lower** levels of depression.                                                                                                                                                   | q03                             | [@Kowal2020; @Jacob2019]                                                                             |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H4: **Parenthood** is associated with significantly **different** levels of depression.                                                                                                                                       | q04                             | [@Stanca2012; @Shevlin2020]                                                                          |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H5: **Higher** education is associated with **lower** levels of depression.                                                                                                                                                   | q11                             | [@Kowal2020; @Gloster2020; @Taylor2008]                                                              |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H6: **Use of social media** is associated with **higher** levels of depression.                                                                                                                                               | q18_02                          | [@Bendau2020; @Dhir2018; @Primack2017]                                                               |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H7: **Physical contact** with friends and family is associated with **lower** levels of depression.                                                                                                                           | q35_01, q35_03                  | [@Gloster2020; @Tull2020; @Luo2020]                                                                  |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H8: Regular consumption of **alcohol** and **tobacco** is associated with **higher** levels of depression.                                                                                                                    | q38, q40                        | [@Stanton2020; @AwaworyiChurchill2017]                                                               |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H9: **Regular workouts** or physical activity are associated with **lower** levels of depression.                                                                                                                             | q42                             | [@Harvey2018; @Schuch2016; @Kvam2016; @Krogh2017; @Stubbs2018]                                       |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H10: **Worse self-rated health quality** is associated with **higher** levels of depression.                                                                                                                                  | q47, q48, q47                   | [@Ambresin2014; @Vindegaard2020; @Hossain2020]                                                       |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H11: **Adequate level of public information** about Covid-19 transmission and **precautionary measures** to prevent its spread (hand washing and mask wearing) is associated with **lower** levels of depression.             | q20, 34_02, 34_07               | [@Wang2020; @Wang2020b]                                                                              |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H12: **Economic distress** is associated with **higher** levels of depression.                                                                                                                                                | q36                             | [@Meltzer2009]                                                                                       |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+| H13: In addition to H6, we hypothesize the existence of a causal pathway leading from **social media exposure** to **depression**, which is mediated by **Covid-19 concern/anxiety** and moderated by **age** and **gender.** | q01, q02, q18_02, concern_index | [@Bendau2020; @Rasmussen2020; @Wheaton2021; @Vannucci2017; @Mertens2020]                             |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+------------------------------------------------------------------------------------------------------+
+
+# Analysis of the Czech sample
+
+## Loading the dataset, required R packages and data wrangling
+
+The code below can be run in R or in R IDE, such as R Studio. We used R Markdown within the R Studio to compose this report and used the open-source [jamovi software](jamovi.org) (a R GUI) to conduct some of the exploratory analyses that are then replicated here.
+
+```{r loading packages and dataset, message=FALSE, warning=FALSE}
+# The following packages might need to be installed onto your version 
+# of R prior to the running of the code below.
+
+library(udpipe)
+library(MASS)
+library(lavaan)
+library(processR)
+library(wordcloud)
+library(corrplot)
+library(tidytext)
+library(tidyverse)
+library(haven)
+library(jmv)
+
+# We load the original Czech dataset (in SPSS format) from a local directory.
+data <- zap_labels(haven::read_sav(file = "COV19_05_agroup.sav"))
+
+# For use in correlation analysis, we duplicate the dataset under name data_corr
+data_corr <- data
+
+# We also try to limit the decimals to three significant figures
+options(digits = 3)
+```
+
+```{r data cleaning and wrangling}
+# Firstly, because the source file is an SPSS file, we need to specify that we 
+# would like to see value labels (such as Male/Female) for selected variables, as
+# opposed to just numeric values (such as 1/2). This is not essential for 
+# the analysis, but seeing the names of labels will enable better understanding 
+# of the results. We also rename key variables to a more human-readable form, 
+# while also renaming variables related to Covid-19 concerns, which we will use 
+# to construct the Covid-19 concern index with factor analysis (to use for 
+# path analysis afterwards). Finally, for convenience, we translate the core 
+# variables labels from Czech to English.
+
+data <- data %>% 
+  transmute(id = RespondentID,
+            q01_gender = recode_factor(as_factor(q01),
+            `1` = "female",
+            `2` = "male"),
+            q02_age = q02,
+            q02_age_group = recode_factor(as_factor(Q4_AGE_r),
+            `1` = "16-29 years",
+            `2` = "30-49 years", 
+            `3` = "50-64 years", 
+            `4` = "65+"), 
+            q03_relationship_type = recode_factor(as_factor(q03),
+            `1` = "single", 
+            `2` = "relationship", 
+            `3` = "married", 
+            `4` = "divorced", 
+            `5` = "widowed"),
+            q04_children = recode_factor(as_factor(q04), 
+            `1` = "yes", 
+            `2` = "no"),
+            q11_education = recode_factor(as_factor(q11), 
+            `1` = "unfin_element", 
+            `2` = "element", 
+            `3` = "unfin_hs", 
+            `4` = "hs", 
+            `5` = "undergrad", 
+            `6` = "postgrad"),
+            q18_02_soc_media = recode_factor(as_factor(replace_na(q18_02, 0)),
+            `0` = "no", 
+            `1` = "yes"),
+            q20_public_info = recode_factor(as_factor(q20), 
+            `1` = "yes", 
+            `2` = "no", 
+            `3` = "do_not_know"),
+            q34_02_face_mask = recode_factor(as_factor(q34_02), 
+            `1` = "yes", 
+            `2` = "no"),
+            q34_07_hand_washing = recode_factor(as_factor(q34_07), 
+            `1` = "yes", 
+            `2` = "no"),
+            q35_01_contact_close_family = recode_factor(as_factor(q35_01), 
+            `1` = "less_often", 
+            `2` = "as_before", 
+            `3` = "more_often"),
+            q35_03_contact_friends = recode_factor(as_factor(q35_03), 
+            `1` = "less_often", 
+            `2` = "as_before", 
+            `3` = "more_often"),
+            q36_econ_worry = recode_factor(as_factor(q36), 
+            `1` = "very_serious", 
+            `2` = "serious", 
+            `3` = "limited"),
+            q38_alcohol = recode_factor(as_factor(q38), 
+            `1` = "yes", 
+            `2` = "no"),
+            q40_smoking = recode_factor(as_factor(q40), 
+            `1` = "yes", 
+            `2` = "no"),
+            q42_sport = recode_factor(as_factor(q42), 
+            `1` = "yes", 
+            `2` = "no"),
+            q47_self_reporting_health = recode_factor(as_factor(q47), 
+            `1` = "excellent", 
+            `2` = "good", 
+            `3` = "neutral", 
+            `4` = "bad", 
+            `5` = "very_bad"),
+            q48_chronic_illness = recode_factor(as_factor(q48), 
+            `1` = "yes", 
+            `2` = "no"),
+            q49_health_limitations = recode_factor(as_factor(q49), 
+            `1` = "limits", 
+            `2` = "partially_limits", 
+            `3` = "no_limits"),
+            q30_concern_infection_covid = q30,
+            q31_concern_infection_friends = q31,
+            q33_01_concern_situation = q33_01,
+            q33_02_concern_low_control = q33_02,
+            q33_03_concern_survival_covid = q33_03,
+            q33_04_concern_change_employment = q33_04,
+            q33_05_concern_infecting_others = q33_05,
+            PHQ8 = PHQ8,
+            q50_comment = q50)
+
+kableExtra::kbl(head(data), 
+      caption = "The overview of the structure of the dataset and its key variables") %>%
+      kableExtra::kable_classic(lightable_options = c("striped")) %>%
+      kableExtra::scroll_box(width = "830px", height = "100%")
+```
+
+## Sample descriptive statistics: Depression index (PHQ8)
+
+The `PHQ8`dependent variable intend to determine the presence and severity of major depressive disorder. The PHQ-8 index construction is standardized and based on the established methodology [@Kroenke2009]. The PHQ-8 questionnaire asks the number of days in the past 2 weeks the respondent had experienced a specific depressive symptom.
+
+This variable was recoded by the international team from 8 survey items (see the [OSF project page](https://osf.io/qs7zn/?view_only=91cf62078f614f519981d19d616c5644) for the precise syntax) and is thus already present in the version of this dataset.
+
+Since we are using several linear models in this report, whose assumption is normal distribution of the residuals, we could benefit from the power transformation of our dependent variable `PHQ8` (using Yeo-Johnson function). We name this transformed variable `PHQ8_t`.
+
+```{r PHQ8 descriptives}
+# To summarize the dependent continuous variable, we use the descriptives() 
+# function from the jmv package.
+
+descriptives <- jmv::descriptives(
+    data = data,
+    vars = "PHQ8",
+    freq = TRUE,
+    box = TRUE,
+    median = FALSE,
+    range = TRUE,
+    sd = TRUE,
+    quart = TRUE)
+```
+
+### PHQ8 results table {.tabset .tabset-pills}
+
+#### Plots
+
+```{r, comment = ""}
+descriptives$plots
+```
+
+#### Descriptives
+
+```{r, comment = ""}
+descriptives$descriptives
+```
+
+```{r PHQ8 transformation, include=FALSE}
+# Normality transformation: finding lambda for entire model that 
+# includes PHQ8 as a dependent variable
+YJ <- car::powerTransform(lm(PHQ8 ~ q01_gender
+                             + q02_age
+                             + q03_relationship_type
+                             + q04_children 
+                             + q11_education
+                             + q18_02_soc_media
+                             + q20_public_info
+                             + q34_02_face_mask
+                             + q34_07_hand_washing 
+                             + q35_01_contact_close_family
+                             + q35_03_contact_friends
+                             + q38_alcohol
+                             + q40_smoking
+                             + q42_sport
+                             + q47_self_reporting_health
+                             + q48_chronic_illness
+                             + q49_health_limitations
+                             , data = data)
+                             , family = "yjPower")
+(lambdaYJ <- YJ$lambda)
+
+# Yeo-Johnson transformation of the dependent variable
+PHQ8_t <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
+
+# Adding the newly created variable to the dataset
+data <- cbind(data, PHQ8_t)
+```
+
+## Sample descriptive statistics: Demographic characteristics (Czech sample)
+
+In the next step, we asses the demographic characteristics of the respondents in the Czech sample.
+
+```{r sample demography descriptives}
+# To summarize the key demographic variables, we use the descriptives() 
+# function from the jmv package.
+
+demo_descriptives <- jmv::descriptives(
+    data = data,
+    vars = vars("q01_gender",
+                "q02_age_group",
+                "q03_relationship_type",
+                "q04_children",
+                "q11_education"),
+    bar = TRUE,
+    freq = TRUE,
+    missing = FALSE,
+    mean = FALSE,
+    median = FALSE,
+    sd = FALSE,
+    min = FALSE,
+    max = FALSE)
+```
+
+### Demographic characteristics results table {.tabset .tabset-pills}
+
+#### Plots
+
+```{r, comment = ""}
+demo_descriptives$plots
+```
+
+#### Frequencies
+
+```{r, comment = ""}
+demo_descriptives$frequencies	
+```
+
+# Building regression model to predict PHQ8
+
+After descriptive statistics, we continue with building and fitting of the regression model based on our hypotheses.
+
+The model has one independent continuous variable - `PHQ8`. The only other continuous variable in the model is `q02_age`, which is inputted as a covariate. The rest of the variables are either categorical (both nominal and ordinal) or binary. The `linreg()` function from the jmv package automatically handles them as dummy variables with reference levels and it is thus not necessary to create further dummy variables prior to this analysis.
+
+## Overview of correlations between individual predictors and outcome
+
+As a first step in the regression model creation, we conduct a correlation analysis. Since we do not presume linearity between all of the variables, we use Spearman's rank coefficient instead of Pearson's *r**.*** The results below need to be interpreted with caution, since some of the variables are categorical (such as `q03_relationship_type`), without a defined order. For categorical variables, comparisons using Chi-Square test would be more appropriate, however, in this step, we are primarily looking at the relationship between the outcome (`PHQ8`) and the theorized predictors. Statistically non-significant correlations (p \> 0.05) are crossed out in the correlation matrix.
+
+```{r correlation matrix, fig.height=9, fig.width=9}
+# While the dataset has been already imported, the values of factor variables 
+# were changed from numerics to text strings, therefore that dataset is unsuitable
+# for correlation analysis. To solve this, we create a parallel dataset, 
+# again renaming the key variables to a more understandable form.
+
+data_corr <- data_corr %>% 
+              transmute(q01_gender = q01, 
+                        q02_age = q02,
+                        q03_relationship_type = q03,
+                        q04_children = q04,
+                        q11_education = q11,
+                        q18_02_soc_media = replace_na(q18_02, 0),
+                        q20_public_info = q20,
+                        q34_02_face_mask = q34_02,
+                        q34_07_hand_washing = q34_07,
+                        q36_econ_worry = q36,
+                        q35_01_contact_close_family = q35_01,
+                        q35_03_contact_friends = q35_03,
+                        q38_alcohol = q38,
+                        q40_smoking = q40,
+                        q42_sport = q42,
+                        q47_self_reporting_health = q47,
+                        q48_chronic_illness = q48,
+                        q49_health_limitations = q49)
+
+data_corr <- cbind(data_corr, PHQ8_t)
+
+res1 <- cor.mtest(data_corr, conf.level = .95)
+
+#Correlation matrix using Spearman coefficient (values with p>0.05 are crossed)
+corrplot(cor(data_corr, 
+             method = "spearman", 
+             use = "complete.obs"), 
+             method = "circle", 
+             title = "Correlation Matrix - Spearman Coefficient", 
+             type = "lower", 
+             p.mat = res1$p, 
+             sig.level = .05, 
+             mar = c(0,0,1,0))
+```
+
+## Theory derived, inductively built regression model
+
+In the first set of models, we avoid potentially biased modifications, such as pairwise comparisons, which could lead to overfitting. Instead, we build four successive models in total ("blocks" in the syntax).
+
+First model uses only the demographic characteristics as predictors. Second model adds the effect of the social media consumption, virus information, economic worries and hygienic measures. Third model adds lifestyle variables, such as alcohol, smoking, sport and social contacts. The fourth model further adds the variables related to self-rated health quality. The performance of each model could be seen in the output below.
+
+```{r theory-driven regression model, comment = ""}
+linreg_theory <- jmv::linReg(
+    data = data,
+    dep = "PHQ8_t",
+    covs = "q02_age",
+    factors = vars("q01_gender",
+                   "q03_relationship_type",
+                   "q04_children", 
+                   "q11_education", 
+                   "q18_02_soc_media", 
+                   "q20_public_info",
+                   "q34_02_face_mask",
+                   "q34_07_hand_washing",
+                   "q35_01_contact_close_family", 
+                   "q35_03_contact_friends", 
+                   "q36_econ_worry",
+                   "q38_alcohol", 
+                   "q40_smoking", 
+                   "q42_sport", 
+                   "q47_self_reporting_health", 
+                   "q48_chronic_illness",
+                   "q49_health_limitations"),
+    blocks = list(
+        list(
+            "q01_gender",
+            "q02_age",
+            "q03_relationship_type",
+            "q04_children",
+            "q11_education"),
+        list(
+            "q18_02_soc_media",
+            "q20_public_info",
+            "q34_02_face_mask",
+            "q34_07_hand_washing",
+            "q36_econ_worry"),
+        list(
+            "q40_smoking",
+            "q42_sport",
+            "q38_alcohol",
+            "q35_01_contact_close_family",
+            "q35_03_contact_friends"),
+        list(
+            "q47_self_reporting_health",
+            "q48_chronic_illness",
+            "q49_health_limitations")),
+    refLevels = list(
+        list(
+            var = "q01_gender",
+            ref = "female"),
+        list(
+            var = "q04_children",
+            ref = "no"),
+         list(
+            var = "q20_public_info",
+            ref = "no"),
+        list(
+            var = "q34_02_face_mask",
+            ref = "no"),
+        list(
+            var = "q34_07_hand_washing",
+            ref = "no"),
+        list(
+            var = "q36_econ_worry",
+            ref = "very_serious"),
+        list(
+            var = "q42_sport",
+            ref = "no"),
+        list(
+            var = "q40_smoking",
+            ref = "yes"),
+        list(
+            var = "q38_alcohol",
+            ref = "yes"),
+        list(
+            var = "q35_01_contact_close_family",
+            ref = "less_often"),
+        list(
+            var = "q35_03_contact_friends",
+            ref = "less_often"),
+        list(
+            var = "q18_02_soc_media",
+            ref = "yes"),
+        list(
+            var = "q03_relationship_type",
+            ref = "single"),
+        list(
+            var = "q47_self_reporting_health",
+            ref = "very_bad"),
+        list(
+            var = "q49_health_limitations",
+            ref = "limits"),
+        list(
+            var = "q11_education",
+            ref = "unfin_element"),
+        list(
+            var = "q48_chronic_illness",
+            ref = "yes")),
+    r2Adj = TRUE,
+    aic = TRUE,
+    bic = TRUE,
+    rmse = TRUE,
+    modelTest = TRUE,
+    anova = TRUE,
+    ci = TRUE,
+    stdEst = TRUE,
+    ciStdEst = TRUE,
+    durbin = TRUE,
+    collin = TRUE)
+```
+
+### Regression model performance {.tabset .tabset-pills}
+
+#### Model fit measures
+
+```{r, comment = ""}
+linreg_theory$modelFit
+```
+
+#### Model comparisons
+
+```{r, comment = ""}
+linreg_theory$modelComp					
+```
+
+#### Model specific results
+
+```{r, comment = ""}
+linreg_theory$models				
+```
+
+## Models derived with stepwise algoritm
+
+As an alternative approach to the theory-derived, inductively build set of models, we choose to use the stepwise regression - combining forward with stepwise selection of the predictors. By using both of the Akaike information criterion (AIC) and Bayesian information criterion (BIC) to select the best-performing model, the algorithm from the `MASS` package arrives at two simpler models, compared to the 18 predictor variables selected with the previous manual approach. However, while these two models perform well with this particular sample, there is a significant chance of underperformance on the international sample, since stepwise regression is prone to overfitting.
+
+Using AIC-ranked stepwise selection, the algorithm arrives at 13-predictor model and with BIC-ranked selection at 7-predictor model.
+
+In order to allow direct comparison with the manually-selected model, we input the chosen models (based on the AIC and BIC criterion) from the previous step into the `linreg()` function of the `jmv` package. The first, simpler model 1 has the 7 predictors from the BIC-selected model. The model 2, has 6 additional variables from AIC-selected stepwise model (to a total of 13).
+
+```{r automatic stepwise regression model, comment = ""}
+# We are using the MASS package, which contains stepAIC() function for stepwise 
+# regression model selection. We again filter the dataset to only the variables 
+# specified with hypotheses
+
+linreg_stepwise <- data %>% dplyr::select(-c(id, 
+                                         q02_age_group,
+                                         q30_concern_infection_covid,
+                                         q31_concern_infection_friends,                
+                                         q33_01_concern_situation, 
+                                         q33_02_concern_low_control, 
+                                         q33_03_concern_survival_covid, 
+                                         q33_04_concern_change_employment, 
+                                         q33_05_concern_infecting_others,
+                                         q50_comment,
+                                         PHQ8))
+
+# Fit the full linear model using lm() function from base R
+full.model_MASS <- lm(PHQ8_t ~.,
+                      data = linreg_stepwise,
+                      na.action = na.omit)
+
+# Stepwise regression model using MASS package, ranks on AIC
+step.model_AIC <- stepAIC(full.model_MASS, 
+                          direction = "both", 
+                          trace = FALSE)
+
+# Stepwise regression model using MASS package, ranks on BIC
+step.model_BIC <- stepAIC(full.model_MASS, 
+                          direction = "both",
+                          trace = FALSE, 
+                          k = log(nrow(linreg_stepwise)))
+
+# To construct this regression model, we use the linReg() 
+# function from the jmv package.
+
+linreg_stepwise2 <- jmv::linReg(
+    data = data,
+    dep = "PHQ8_t",
+    covs = "q02_age",
+    factors = vars("q01_gender",
+                   "q03_relationship_type",
+                   "q04_children", 
+                   "q18_02_soc_media", 
+                   "q20_public_info",
+                   "q34_02_face_mask",
+                   "q36_econ_worry",
+                   "q38_alcohol", 
+                   "q40_smoking", 
+                   "q47_self_reporting_health", 
+                   "q48_chronic_illness",
+                   "q49_health_limitations"),
+    blocks = list(
+        list(
+            "q01_gender",
+            "q02_age",
+            "q04_children",
+            "q36_econ_worry",
+            "q18_02_soc_media",
+            "q47_self_reporting_health",
+            "q49_health_limitations"),
+          list(
+            "q03_relationship_type",
+            "q20_public_info",
+            "q34_02_face_mask",
+            "q38_alcohol",
+            "q40_smoking",
+            "q48_chronic_illness")),
+    refLevels = list(
+        list(
+            var = "q01_gender",
+            ref = "female"),
+        list(
+            var = "q04_children",
+            ref = "no"),
+         list(
+            var = "q20_public_info",
+            ref = "no"),
+        list(
+            var = "q34_02_face_mask",
+            ref = "no"),
+        list(
+            var = "q36_econ_worry",
+            ref = "very_serious"),
+        list(
+            var = "q40_smoking",
+            ref = "yes"),
+        list(
+            var = "q38_alcohol",
+            ref = "yes"),
+        list(
+            var = "q18_02_soc_media",
+            ref = "yes"),
+        list(
+            var = "q03_relationship_type",
+            ref = "single"),
+        list(
+            var = "q47_self_reporting_health",
+            ref = "very_bad"),
+        list(
+            var = "q49_health_limitations",
+            ref = "limits"),
+        list(
+            var = "q48_chronic_illness",
+            ref = "yes")),
+    r2Adj = TRUE,
+    aic = TRUE,
+    bic = TRUE,
+    rmse = TRUE,
+    modelTest = TRUE,
+    anova = TRUE,
+    ci = TRUE,
+    stdEst = TRUE,
+    ciStdEst = TRUE,
+    durbin = TRUE,
+    collin = TRUE)
+```
+
+### Stepwise model performance {.tabset .tabset-pills}
+
+#### AIC-selected model summary
+
+```{r, comment = ""}
+base::summary(step.model_AIC)
+```
+
+#### BIC-selected model summary
+
+```{r, comment = ""}
+base::summary(step.model_BIC)
+```
+
+#### Stepwise model fit measures
+
+```{r, comment = ""}
+linreg_stepwise2$modelFit
+```
+
+#### Stepwise model comparisons
+
+```{r, comment = ""}
+linreg_stepwise2$modelComp					
+```
+
+#### Stepwise model specific results
+
+```{r, comment = ""}
+linreg_stepwise2$models				
+```
+
+# Covid-19 concern factor as a mediator for depression
+
+## Creation of the Covid-19 concern index, step 1: overview of survey items
+
+Aside from the regression model, we intend to explore the mediating role of concern/anxiety between the consumption of social media and depression through a mediation/moderation analysis (in section 5).
+
+Unlike as is in the case of PHQ-8 index as a measure of depression, this survey does not have a standardized measure of of Covid-19 concern or anxiety. We therefore try to proceed inductively, using Covid-19-related survey items that could represent the underlying construct.
+
+Therefore, in this section, we aim to construct a Covid-19 concern index from several survey items using factor analysis. As a first step, we select the survey items, which should be the manifestation of the latent factor of Covid-19-related concern/anxiety.
+
+These survey items are:
+
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| Survey question (1-10 scale)                                                                                                          | Original variable | Renamed variable name            |
++=======================================================================================================================================+===================+==================================+
+| How scared are you of the risk of getting sick?                                                                                       | q30               | q30_concern_infection_covid      |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| How scared are you of the risk that someone in your family or network of friends will get COVID-19?                                   | q31               | q31_concern_infection_friends    |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| I feel very anxious about the health emergency.                                                                                       | q33_01            | q33_01_concern_situation         |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| I think I have little control over whether I get the infection.                                                                       | q33_02            | q33_02_concern_low_control       |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| I am scared that I will not be able to survive if I get sick due to COVID-19 or I got sick and I was scared that I would not survive. | q33_03            | q33_03_concern_survival_covid    |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| I thought about quitting my job / dropping out of school due to COVID-19.                                                             | q33_04            | q33_04_concern_change_employment |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+| I am afraid of transmitting the coronavirus to others.                                                                                | q33_05            | q33_05_concern_infecting_others  |
++---------------------------------------------------------------------------------------------------------------------------------------+-------------------+----------------------------------+
+
+## Creation of the Covid-19 concern index, step 2: survey items descriptives and pre-processing
+
+After the initial selection, we analyze these survey items with a set of descriptive statistics. To follow the established principles pertaining to the factor analyses, we also split the sample into two randomly chosen halves [@Cabrera-Nguyen2010]. The first half of the data set will be used for the Exploratory Factor Analysis, while the second half will be used by the Reliability and Confirmatory Factor Analyses (all functions from `jmv` package).
+
+```{r concern items descriptives, comment = ""}
+anx_items_descriptives <- jmv::descriptives(
+                            data = data,
+                            vars = vars("q30_concern_infection_covid", 
+                                        "q31_concern_infection_friends", 
+                                        "q33_01_concern_situation", 
+                                        "q33_02_concern_low_control", 
+                                        "q33_03_concern_survival_covid", 
+                                        "q33_04_concern_change_employment", 
+                                        "q33_05_concern_infecting_others"),
+                                        hist = TRUE,
+                                        min = FALSE,
+                                        max = FALSE)
+
+# We also split the sample into two halves. The "training" half, on which we 
+# conduct the EFA analysis and "test" part, on which we 
+# test our construct through CFA.
+
+set.seed(2021)
+train_set <- data %>% slice_sample(n = 742)
+test_set <- setdiff(data,train_set)
+```
+
+### Concern items results {.tabset .tabset-pills}
+
+#### Plots
+
+```{r, comment = ""}
+anx_items_descriptives$plots
+```
+
+#### Descriptives
+
+```{r, comment = ""}
+anx_items_descriptives$descriptives	
+```
+
+## Creation of the Covid-19 concern index, step 3: Exploratory Factor Analysis of survey items
+
+In the next step, we conduct an Exploratory Factor Analysis on these variables.
+
+In line with best practices, we conduct the assumption checks (KMO and Bartlett's Sphericity tests), set a cutoff for eigenvalue of \>1 and hide factor loading below 0.4.
+
+The result is therefore a one-factor construct, which includes all of the variables, except for the `q33_04_concern_change_employment`, which does not seem to be a good fit for the manifestation of Covid-19 concern within this group of variables. We will exclude this variable in the next step.
+
+```{r concern items Exploratory Factor Analysis, comment = ""}
+# To conduct the EFA, we use the efa() function from the jmv package on 
+# the "train" data set (as opposed to the "test" dataset used for CFA).
+
+jmv::efa(
+    data = train_set,
+    vars = vars("q30_concern_infection_covid", 
+                "q31_concern_infection_friends", 
+                "q33_01_concern_situation", 
+                "q33_02_concern_low_control", 
+                "q33_03_concern_survival_covid", 
+                "q33_04_concern_change_employment", 
+                "q33_05_concern_infecting_others"),
+    nFactorMethod = "eigen",
+    nFactors = 1,
+    minEigen = 1,
+    rotation = "promax",
+    hideLoadings = 0.4,
+    screePlot = TRUE,
+    factorSummary = TRUE,
+    kmo = TRUE,
+    bartlett = TRUE)
+```
+
+## Creation of the Covid-19 concern index, step 3: Reliability Analysis of the index items
+
+Secondly, we conduct a Reliability Analysis of the Covid-19 concern factor. We use a cutoff value of 0.7 for both McDonald's Omega and Cronbach's Alpha. The scale passes this cutoff and the statistics would not be improved if any of the items were dropped.
+
+```{r concern index reliability analysis, comment = ""}
+# To conduct the reliability analysis, we use the reliability() function from the 
+#  jmv package on the "test" data set (as opposed to the "train" dataset used for EFA).
+
+jmv::reliability(
+    data = test_set,
+    vars = vars("q30_concern_infection_covid", 
+                "q31_concern_infection_friends", 
+                "q33_01_concern_situation", 
+                "q33_02_concern_low_control", 
+                "q33_03_concern_survival_covid", 
+                "q33_05_concern_infecting_others"),
+    omegaScale = TRUE,
+    alphaItems = TRUE,
+    omegaItems = TRUE)
+```
+
+## Creation of the Covid-19 concern index, step 4: Confirmatory Factor Analysis of the index items
+
+According to the [commonly used cut-offs](https://www.cscu.cornell.edu/news/Handouts/SEM_fit.pdf) for estimating CFA fit, we report that the Standardized Root Mean Square Residual is 0.0521 (cut-off SRMR \<0.08), which indicates a good fit. However, Root Mean Square Error of Approximation (90% CI) is 0.130-0.171 (cut-off \< 0.08), the Comparative Fit Index is 0.887 (cut-off CFI ≥.90), and the chi-square test value is 159 (p \< 0.001), which does not indicate a good-fit.
+
+```{r concern index Confirmatory Factor Analysis, comment = ""}
+# To conduct the CFA, we use the cfa() function from the jmv package on the "test" 
+# data set (as opposed to the "train" dataset used for EFA).
+
+jmv::cfa(
+    data = test_set,
+    factors = list(
+        list(
+            label = "Concern",
+            vars = c(
+                "q30_concern_infection_covid",
+                "q31_concern_infection_friends",
+                "q33_01_concern_situation",
+                "q33_02_concern_low_control",
+                "q33_03_concern_survival_covid",
+                "q33_05_concern_infecting_others"))),
+    resCov = list(),
+    ci = TRUE,
+    stdEst = TRUE,
+    factCovEst = FALSE,
+    fitMeasures = c("cfi", "tli", "rmsea", "srmr"),
+    corRes = TRUE)
+```
+
+## Creation of Covid-19 concern index, step 5: creation and descriptives
+
+After Reliability Analysis and CFA, we combine the multiple variables into one named `concern_index`. We also render visualization and descriptive statistics for the new `concern_index` variable.
+
+```{r concern index creation and descriptives, comment = ""}
+# Creating the Covid-19-related concern/anxiety index, consisting of the average of 
+# the values of the multiple variables selected through factor analysis to
+# represent the underlying construct.
+
+concern_index <- apply(cbind(data$q30_concern_infection_covid,
+                             data$q31_concern_infection_friends,
+                             data$q33_01_concern_situation,
+                             data$q33_02_concern_low_control,
+                             data$q33_03_concern_survival_covid,
+                             data$q33_05_concern_infecting_others), 1, mean)
+
+#Adding the vector as an column to the existing dataset.
+
+data <- cbind(data, concern_index)
+
+#To summarize the concern_index variable, we use the descriptives() 
+# function from the jmv package.
+
+anx_index_descriptives <- jmv::descriptives(
+                                            data = data,
+                                            missing = TRUE,
+                                            vars = "concern_index",
+                                            sd = TRUE,
+                                            median = FALSE,
+                                            quart = TRUE,
+                                            range = TRUE,
+                                            box = TRUE)
+```
+
+### Covid-19 concern index results {.tabset .tabset-pills}
+
+#### Plots
+
+```{r anx index plot, comment = ""}
+anx_index_descriptives$plots
+```
+
+#### Descriptives
+
+```{r anx index results, comment = ""}
+anx_index_descriptives$descriptives	
+```
+
+# Path analysis with a simplified model
+
+## Moderated mediation model diagrams and pre-processing
+
+To explore our hypothesized pathway (see H13) between social media exposure and depression, partially mediated by Covid-19-related concerns and moderated by age (which is presumed to influence both the social media exposure and the depression pathway), we conduct a mediation-moderation analysis using the `lavaan` package, conceptually structured as a [Hayes model nr. 76.](https://osf.io/29c8p/download)
+
+```{r Hayes model 76 pre-processing}
+# Before running the model, we need to transform the social media string 
+# dummy (yes/no) back to its numeric form, with similar operation for gender.
+
+levels(data$q18_02_soc_media) <- list("1" = "yes", "0" = "no")
+levels(data$q01_gender) <- list("0" = "female", "1" = "male")
+data$q01_gender <- as.numeric(as.character(data$q01_gender))
+data$q18_02_soc_media <- as.numeric(as.character(data$q18_02_soc_media))
+
+# Centering continuous variables with scaling
+data_sem <- data %>% 
+        filter(!is.na(concern_index)) %>% 
+        mutate(concern_index.c = scale(concern_index, scale = TRUE),
+               PHQ8.c = scale(PHQ8_t, scale = TRUE),
+               q02_age.c = scale(q02_age, scale = TRUE))
+
+# Labels for diagrams
+labels_H76 <- list(X = "Social Media", 
+                   M = "Concern", 
+                   Y = "Depression", 
+                   W = "Age", 
+                   Z = "Gender")
+```
+
+### Path analysis model structure {.tabset .tabset-pills}
+
+#### Conceptual diagram
+
+```{r fig.height=7, fig.width=9}
+pmacroModel(76,
+            labels = labels_H76,
+            xmargin = 0,
+            rady = 0.047,
+            radx = 0.09,
+            ylim = c(0.15, 0.8))
+```
+
+#### Statistical diagram with path names
+
+```{r fig.height=7, fig.width=9}
+statisticalDiagram(76,
+                   labels = labels_H76,
+                   whatLabel = "name",
+                   xmargin = 0.01,
+                   rady = 0.03,
+                   radx = 0.11,
+                   ylim = c(0.06, 0.95),
+                   xlim = c(0.01, 1))
+```
+
+## Moderated mediation model specification and results
+
+In the second step, we specify the key pathways and run the analysis, while bootstrapping the confidence intervals.
+
+```{r Hayes model 76, warning=FALSE, comment = ""}
+# Mediation-moderation analysis (path analysis framework, SEM) using lavaan package.
+
+# First, we specify the model pathways
+spec_mod <- "
+# Regressions
+concern_index.c ~ a1*q18_02_soc_media + a2*q02_age.c + a3*q01_gender + a4*q18_02_soc_media:q02_age.c + a5*q18_02_soc_media:q01_gender
+
+PHQ8.c ~ c1*q18_02_soc_media + c2*q02_age.c + c3*q01_gender + c4*q18_02_soc_media:q02_age.c + c5*q18_02_soc_media:q01_gender + b1*concern_index.c + b2*concern_index.c:q02_age.c + b3*concern_index.c:q01_gender
+
+#Mean and variance of age and gender moderators
+q02_age.c ~ q02_age.c.mean*1
+q02_age.c ~~ q02_age.c.var*q02_age.c
+q01_gender ~ q01_gender.mean*1
+q01_gender ~~ q01_gender.var*q01_gender
+
+# Effect specifications
+indirect := (a1 + a4*q02_age.c.mean + a5*q01_gender.mean)*(b1 + b2*q02_age.c.mean + b3*q01_gender.mean)
+direct := c1 + c4*q02_age.c.mean + c5*q01_gender.mean
+total := direct + indirect
+prop.mediated := indirect / total
+
+# Component effects (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
+XonM.mean.male := a1 + a4*q02_age.c.mean + a5*1
+XonM.mean.female := a1 + a4*q02_age.c.mean + a5*0
+XonM.mean.avg := a1 + a4*q02_age.c.mean + a5*q01_gender.mean
+
+MonY.mean.male := b1 + b2*q02_age.c.mean + b3*1
+MonY.mean.female := b1 + b2*q02_age.c.mean + b3*0
+MonY.mean.avg := b1 + b2*q02_age.c.mean + b3*q01_gender.mean
+
+# Component effects conditional on moderators (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
+XonM.blw.male := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*1
+XonM.blw.female := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*0
+XonM.blw.avg := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*q01_gender.mean
+
+MonY.blw.male := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*1
+MonY.blw.female := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*0
+MonY.blw.avg := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*q01_gender.mean
+
+XonM.abv.male := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*1
+XonM.abv.female := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*0
+XonM.abv.avg := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*q01_gender.mean
+
+MonY.abv.male := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*1
+MonY.abv.female := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*0
+MonY.abv.avg := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*q01_gender.mean
+
+# Indirect effects conditional on moderators
+indirect.blw.male := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*1)
+indirect.blw.female := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*0)
+indirect.blw.avg := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+
+indirect.abv.male := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*1)
+indirect.abv.female := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*0)
+indirect.abv.avg := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+
+# Direct effects conditional on moderators
+direct.blw.male := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*1
+direct.blw.female := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*0
+direct.blw.avg := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*q01_gender.mean
+
+direct.abv.male := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*1
+direct.abv.female := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*0
+direct.abv.avg := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*q01_gender.mean
+
+# Total effects conditional on moderators
+total.blw.male := direct.blw.male + indirect.blw.male
+total.blw.female := direct.blw.female + indirect.blw.female
+total.blw.avg := direct.blw.avg + indirect.blw.avg
+
+total.abv.male := direct.abv.male + indirect.abv.male
+total.abv.female := direct.abv.female + indirect.abv.female
+total.abv.avg := direct.abv.avg + indirect.abv.avg
+
+# Proportion mediated conditional on moderators
+prop.med.blw.male := indirect.blw.male / total.blw.male
+prop.med.blw.female := indirect.blw.female / total.blw.female
+prop.med.blw.avg := indirect.blw.avg / total.blw.avg
+
+prop.med.abv.male := indirect.abv.male / total.abv.male
+prop.med.abv.female := indirect.abv.female / total.abv.male
+prop.med.abv.avg := indirect.abv.avg / total.abv.avg"
+
+# For reproducibility of results (using bootstrap)
+set.seed(2021)
+
+# Secondly, we fit/estimate the model and we use bootstrap for robustness.
+fit_mod <- lavaan::sem(model = spec_mod,
+               data = data_sem,
+               se = "bootstrap",
+               bootstrap = 1000)
+
+# Labels for statistical diagrams
+labels_stats_H76 <- list(X = "q18_02_soc_media",
+                         M = "concern_index.c",
+                         Y = "PHQ8.c",
+                         W = "q02_age.c",
+                         Z = "q01_gender")
+```
+
+### Path analysis model summary, estimates and statistical diagram {.tabset .tabset-pills}
+
+#### Diagram with unstandardized coefficients
+
+```{r fig.height=7, fig.width=9}
+statisticalDiagram(76,
+                   labels = labels_stats_H76,
+                   fit = fit_mod,
+                   whatLabel = "est",
+                   xmargin = 0.01,
+                   rady = 0.03,
+                   radx = 0.158,
+                   ylim = c(0.06, 0.95),
+                   xlim = c(0.01, 1))
+```
+
+#### Diagram with standardized coefficients
+
+```{r fig.height=7, fig.width=9}
+statisticalDiagram(76,
+                   labels = labels_stats_H76,
+                   fit = fit_mod,
+                   whatLabel = "std",
+                   xmargin = 0.01,
+                   rady = 0.03,
+                   radx = 0.158,
+                   ylim = c(0.06, 0.95),
+                   xlim = c(0.01, 1))
+```
+
+#### Detailed model summary
+
+```{r,  comment = ""}
+lavaan::summary(fit_mod, 
+                rsquare = TRUE, 
+                ci = TRUE,
+                fit.measures = TRUE,
+                standardize = TRUE)
+```
+
+#### Table of model estimates
+
+```{r}
+kableExtra::kbl(estimatesTable(fit_mod,
+                               ci = TRUE)) %>%
+  kableExtra::kable_classic(full_width = FALSE, 
+                                lightable_options = c("striped"))
+```
+
+# Visualizing the qualitative responses using Word Clouds
+
+Part of the survey, `q50_comment`, was dedicated to the comments of the respondents on their situation. To visualize this textual data, we use two pairs of two word clouds. Unfortunately, this survey item was used only in the Czech version of the survey.
+
+## Word Clouds of tokens and lemma
+
+First Word Cloud pair visualizes the most common tokens and lemma (size and color represents frequency of the word).
+
+```{r Word Cloud all tokens, message=FALSE}
+# Remove stop words - first, we load the public stop word list
+stop_words_cz <- read_csv(
+  "https://raw.githubusercontent.com/stopwords-iso/stopwords-cs/master/stopwords-cs.txt", 
+  col_names = "word")
+   
+# Should the above link become obsolete, alternative source can be reached 
+#  using "stopwords" library:
+#  stop_words_cz <- as_tibble_col(stopwords::stopwords("cs", 
+#                                                      source = "stopwords-iso"), 
+#                                                      column_name = "word")
+
+# Reshape the data frame into one column called "word"
+tidy_dat <- gather(dplyr::as_tibble(data$q50_comment), key, word) %>% 
+            dplyr::select(word)
+
+# STEP 1: Tokenization of the q50 responses
+
+# Tokenize - one word per row of a dataframe/tibble
+tokens <- tidy_dat %>%
+          unnest_tokens(word, word) %>%
+          dplyr::count(word, sort = TRUE) %>%
+          ungroup()
+                       
+# Removing stop words by using anti_join() applied on the stop words list
+tokens_clean <- tokens %>%
+                anti_join(stop_words_cz)
+
+# Next, we remove numbers (optional step)
+nums <- tokens_clean %>% 
+        dplyr::filter(str_detect(word, "^[0-9]")) %>% 
+        dplyr::select(word) %>% 
+        unique()
+
+tokens_clean <- tokens_clean %>% 
+                anti_join(nums, by = "word")
+
+#  We can also remove unique stop words that are still present (optional step)
+uni_sw <- data.frame(word = c("např"))
+
+tokens_clean <- tokens_clean %>% 
+                anti_join(uni_sw, by = "word")
+
+# Define a color palette for the Word Cloud
+palette <- brewer.pal(8, "Dark2")
+
+# STEP 2: Lemmatization of tokens, using udpipe package
+
+# Creation of uncounted tokens table
+tokens_uncounted <- tidy_dat %>%
+                    unnest_tokens(word, word)
+
+# Fitting the udpipe model with downloaded Czech model
+
+udpipe_tokens_lemma <- udpipe(x = tokens_uncounted$word, object = "czech-pdt")
+
+# Extracting resulting lemma column from the model, counting frequency 
+tidy_dat_lemma <- udpipe_tokens_lemma %>% 
+                  select(lemma) %>% 
+                  rename(word = lemma) %>% 
+                  dplyr::count(word, sort = TRUE)
+
+# Removing stop words by using anti_join() applied on the stop words list
+tokens_clean_lemma <- tidy_dat_lemma %>%
+                      anti_join(stop_words_cz)
+
+# Next, we remove numbers (optional step)
+nums_lemma <- tokens_clean_lemma %>% 
+              dplyr::filter(str_detect(word, "^[0-9]")) %>% 
+              dplyr::select(word) %>% 
+              unique()
+
+tokens_clean_lemma <- tokens_clean_lemma %>% 
+                      anti_join(nums_lemma, by = "word")
+
+#  We can also remove unique stop words that are still present (optional step)
+uniq_lemma <- tibble(word = c(NA))
+tokens_clean_lemma <- tokens_clean_lemma %>% 
+                      anti_join(uniq_lemma, by = "word")
+
+```
+
+### Word Clouds tokens & lemma {.tabset .tabset-pills}
+
+#### Word Cloud of tokens
+
+```{r fig.height=9, fig.width=9}
+set.seed(2021)
+tokens_clean %>% with(wordcloud(word, 
+                                n, 
+                                random.order = FALSE,
+                                scale = c(7,.5), 
+                                min.freq = 1, 
+                                max.words = 100, 
+                                colors = palette))
+```
+
+#### Word Cloud of lemma
+
+```{r fig.height=9, fig.width=9}
+set.seed(2021)
+tokens_clean_lemma %>% with(wordcloud(word,
+                                      n, 
+                                      random.order = FALSE, 
+                                      scale = c(11,.7), 
+                                      min.freq = 1, 
+                                      max.words = 100, 
+                                      colors = palette))
+```
+
+## Word Clouds with applied sentiment analysis
+
+Second Word Cloud pair uses sentiment analysis technique to create two distinct word clouds (using only lemma, not tokens), one visualizes only words with positive emotional sentiment, while the second only words with negative sentiment.
+
+```{r Word Cloud positive valency, message=FALSE, warning=FALSE}
+# First, we load Czech Subjectivity Lexicon from ÚFAL MFF, which assesses 
+#  sentiment for every word as positive or negative
+
+lindat_repository <- "https://lindat.mff.cuni.cz/repository/"
+lindat_path <- "xmlui/bitstream/handle/11858/00-097C-0000-0022-FF60-B/"
+lindat_file_name <- "sublex_1_0.csv?sequence=1&isAllowed=y"
+
+sentiment_cz <- read_delim(paste0(lindat_repository, lindat_path, lindat_file_name),
+                           "\t", 
+                           escape_double = FALSE, 
+                           col_names = FALSE, 
+                           trim_ws = TRUE) %>% 
+                           rename("word" = "X3", "sentiment" = "X4")
+# Remove extra symbols
+sentiment_cz$word <- str_remove(sentiment_cz$word, pattern = "_.*")
+
+# Next, we create tidy tibble with tokens created in the previous section 
+#  and we use inner_join function to separately save only 
+#  the tokens with positive and negative valency
+tokens_sentiment_positive <- tokens_clean_lemma %>% 
+                             inner_join(sentiment_cz %>% 
+                             filter(sentiment == "POS")) %>% 
+                             transmute(word, n) %>% 
+                             arrange(desc(n))
+
+tokens_sentiment_negative <- tokens_clean_lemma %>% 
+                             inner_join(sentiment_cz %>% 
+                             filter(sentiment == "NEG")) %>% 
+                             transmute(word, n) %>% 
+                             arrange(desc(n))
+```
+
+### Word Clouds separated by sentiment valency {.tabset .tabset-pills}
+
+#### Positive valency words
+
+```{r fig.height=9, fig.width=9}
+set.seed(2021)
+tokens_sentiment_positive %>% with(wordcloud(word,
+                                             n, 
+                                             random.order = FALSE, 
+                                             scale = c(2, 3.5), 
+                                             max.words = 45,
+                                             min.freq = 1,
+                                             colors = palette))
+```
+
+#### Negative valency words
+
+```{r fig.height=9, fig.width=9}
+set.seed(2021)
+tokens_sentiment_negative %>% with(wordcloud(word,
+                                             n, 
+                                             random.order = FALSE, 
+                                             scale = c(2, 3.5), 
+                                             max.words = 45, 
+                                             min.freq = 1,
+                                             colors = palette))
+```
+
+# Bibliography

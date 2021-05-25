@@ -1,0 +1,67 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "International sample report v0.1"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(out.width = "90%", echo = TRUE)
+```
+
+```{css, echo=FALSE}
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+  max-height: 600px;
+  overflow-y: auto;
+}
+#TOC {
+  font-size: 12px;
+}
+h1.title {
+  font-size: 28px;
+}
+h1 {
+  font-size: 23px;
+}
+h2 {
+  font-size: 18px;
+}
+h3 {
+  font-size: 16px;
+}
+h4 {
+  font-size: 12px;
+}
+h4.author {
+  font-style: italic;
+  font-size: 16px;
+}
+h4.date {
+  font-size: 16px;
+}
+```
+
+
+# Analysis of the Czech sample
+
+## Loading the dataset, required R packages and data wrangling
+
+INTERNATIONAL DATASET_12 Oct_final.sav
+
+
+
