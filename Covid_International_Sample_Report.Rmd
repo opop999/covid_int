@@ -88,10 +88,58 @@ options(digits = 3)
 
 sjPlot::view_df(data)
 
+
 ```
 
 
 ```{r}
+
+# Calculating PH8
+
+data <- data %>% 
+  mutate(Q49_1_rec = recode(Q49_1,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_2_rec = recode(Q49_2,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_3_rec = recode(Q49_3,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_4_rec = recode(Q49_4,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_5_rec = recode(Q49_5,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),         
+         Q49_6_rec = recode(Q49_6,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),         
+         Q49_7_rec = recode(Q49_7,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3), 
+         Q49_8_rec = recode(Q49_8,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         PHQ8 = Q49_1_rec + Q49_2_rec + Q49_3_rec + Q49_4_rec + Q49_5_rec + Q49_6_rec + Q49_7_rec + Q49_8_rec)
+
+
 # Filtering out the Czech dataset, renaming variables to identical ones as before
 data <- data %>% 
   transmute(country = recode_factor(as_factor(Country),
@@ -178,18 +226,32 @@ data <- data %>%
             q33_03_concern_survival_covid = Q36_3,
             q33_04_concern_change_employment = Q36_4,
             q33_05_concern_infecting_others = Q36_5,
-            PHQ8 = PHQ8_cat,
-            PHQ8_group = recode_factor(as_factor(PHQ8_cat),
-            `0` = "no_depression",
-            `1` = "minimal",
-            `2` = "mild",
-            `3` = "moderate",
-            `4` = "moderate_severe",
-            `5` = "severe")) %>% 
+            PHQ8 = PHQ8) %>% 
   filter(country != "CZ", q01_gender != "other")
 
 
 ```
+
+
+```{r}
+library(mice)
+
+md.pattern(data)
+
+map(data, ~sum(is.na(.)))
+
+data %>%
+  summarise(NA_total = sum(is.na(.)), 
+            not_NA = sum(!is.na(.)),
+            proportion_NA = (NA_total/not_NA))
+
+
+
+```
+
+
+
+
 
 ```{r PHQ8 descriptives}
 # To summarize the dependent continuous variable, we use the descriptives() 
@@ -256,7 +318,36 @@ demo_descriptives$plots
 demo_descriptives$frequencies	
 ```
 
+```{r PHQ8 transformation, include=FALSE}
+# Normality transformation: finding lambda for entire model that 
+# includes PHQ8 as a dependent variable
+YJ <- car::powerTransform(lm(PHQ8 ~ q01_gender
+                             + q02_age
+                             + q03_relationship_type
+                             + q04_children 
+                             + q11_education
+                             + q18_02_soc_media
+                             + q20_public_info
+                             + q34_02_face_mask
+                             + q34_07_hand_washing 
+                             + q35_01_contact_close_family
+                             + q35_03_contact_friends
+                             + q38_alcohol
+                             + q40_smoking
+                             + q42_sport
+                             + q47_self_reporting_health
+                             + q48_chronic_illness
+                             + q49_health_limitations
+                             , data = data)
+                             , family = "yjPower")
+(lambdaYJ <- YJ$lambda)
 
+# Yeo-Johnson transformation of the dependent variable
+PHQ8_t <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
+
+# Adding the newly created variable to the dataset
+data <- cbind(data, PHQ8_t)
+```
 
 ```{r theory-driven regression model, comment = ""}
 linreg_theory <- jmv::linReg(
@@ -394,22 +485,23 @@ linreg_theory$models
 # regression model selection. We again filter the dataset to only the variables 
 # specified with hypotheses
 
-linreg_stepwise <- data %>% dplyr::select(-c(id, 
+
+linreg_stepwise <- data %>% dplyr::select(-c(country, 
                                          q02_age_group,
+                                         q11_education,
                                          q30_concern_infection_covid,
                                          q31_concern_infection_friends,                
                                          q33_01_concern_situation, 
                                          q33_02_concern_low_control, 
                                          q33_03_concern_survival_covid, 
-                                         q33_04_concern_change_employment, 
+                                         q33_04_concern_change_employment, # ALSO REMOVING EDUCATION TEMPORALILY
                                          q33_05_concern_infecting_others,
-                                         q50_comment,
                                          PHQ8))
 
 # Fit the full linear model using lm() function from base R
 full.model_MASS <- lm(PHQ8_t ~.,
                       data = linreg_stepwise,
-                      na.action = na.omit)
+                      na.action = na.exclude)
 
 # Stepwise regression model using MASS package, ranks on AIC
 step.model_AIC <- stepAIC(full.model_MASS, 
