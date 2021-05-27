@@ -86,17 +86,13 @@ data_corr <- data
 # We also try to limit the decimals to three significant figures
 options(digits = 3)
 
-sjPlot::view_df(data)
-
-
 ```
 
 
 ```{r}
-
 # Calculating PH8
 
-data <- data %>% 
+data <- data %>%
   mutate(Q49_1_rec = recode(Q49_1,
             `1` = 0,
             `2` = 1,
@@ -121,24 +117,23 @@ data <- data %>%
             `1` = 0,
             `2` = 1,
             `3` = 2,
-            `4` = 3),         
+            `4` = 3),
          Q49_6_rec = recode(Q49_6,
             `1` = 0,
             `2` = 1,
             `3` = 2,
-            `4` = 3),         
+            `4` = 3),
          Q49_7_rec = recode(Q49_7,
             `1` = 0,
             `2` = 1,
             `3` = 2,
-            `4` = 3), 
+            `4` = 3),
          Q49_8_rec = recode(Q49_8,
             `1` = 0,
             `2` = 1,
             `3` = 2,
             `4` = 3),
          PHQ8 = Q49_1_rec + Q49_2_rec + Q49_3_rec + Q49_4_rec + Q49_5_rec + Q49_6_rec + Q49_7_rec + Q49_8_rec)
-
 
 # Filtering out the Czech dataset, renaming variables to identical ones as before
 data <- data %>% 
@@ -227,31 +222,12 @@ data <- data %>%
             q33_04_concern_change_employment = Q36_4,
             q33_05_concern_infecting_others = Q36_5,
             PHQ8 = PHQ8) %>% 
-  filter(country != "CZ", q01_gender != "other")
+  filter(country != "CZ")
 
 
 ```
 
-
-```{r}
-library(mice)
-
-md.pattern(data)
-
-map(data, ~sum(is.na(.)))
-
-data %>%
-  summarise(NA_total = sum(is.na(.)), 
-            not_NA = sum(!is.na(.)),
-            proportion_NA = (NA_total/not_NA))
-
-
-
-```
-
-
-
-
+## Sample descriptive statistics: Depression index (PHQ8)
 
 ```{r PHQ8 descriptives}
 # To summarize the dependent continuous variable, we use the descriptives() 
@@ -349,26 +325,75 @@ PHQ8_t <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
 data <- cbind(data, PHQ8_t)
 ```
 
+## Overview of correlations between individual predictors and outcome
+
+```{r correlation matrix, fig.height=9, fig.width=9}
+# While the dataset has been already imported, the values of factor variables 
+# were changed from numerics to text strings, therefore that dataset is unsuitable
+# for correlation analysis. To solve this, we create a parallel dataset, 
+# again renaming the key variables to a more understandable form.
+
+data_corr <- data_corr %>% 
+             transmute(country = Country,
+                        q01_gender = Q3, 
+                        q02_age = Q4,
+                        q03_relationship_type = Q5,
+                        q04_children = Q6,
+                        q11_education = Q13R,
+                        q18_02_soc_media = replace_na(Q21_2, 0),
+                        q20_public_info = Q23,
+                        q34_02_face_mask = Q37_2,
+                        q34_07_hand_washing = Q37_7,
+                        q36_econ_worry = Q39,
+                        q35_01_contact_close_family = Q38_1,
+                        q35_03_contact_friends = Q38_3,
+                        q38_alcohol = Q42,
+                        q40_smoking = Q44,
+                        q42_sport = Q46,
+                        q47_self_reporting_health = Q50,
+                        q48_chronic_illness = Q51,
+                        q49_health_limitations = Q52) %>% 
+              filter(country != 5) %>% 
+              select(-country)
+
+data_corr <- cbind(data_corr, PHQ8_t)
+
+res1 <- cor.mtest(data_corr, conf.level = .95)
+
+#Correlation matrix using Spearman coefficient (values with p>0.05 are crossed)
+corrplot(cor(data_corr, 
+             method = "spearman", 
+             use = "complete.obs"), 
+             method = "circle", 
+             title = "Correlation Matrix - Spearman Coefficient", 
+             type = "lower", 
+             p.mat = res1$p, 
+             sig.level = .05, 
+             mar = c(0,0,1,0))
+```
+
+
 ```{r theory-driven regression model, comment = ""}
+
 linreg_theory <- jmv::linReg(
     data = data,
     dep = "PHQ8_t",
     covs = "q02_age",
     factors = vars("q01_gender",
                    "q03_relationship_type",
-                   "q04_children", 
-                   "q11_education", 
-                   "q18_02_soc_media", 
+                   "q04_children",
+                   "q11_education",
+                   "q18_02_soc_media",
                    "q20_public_info",
                    "q34_02_face_mask",
                    "q34_07_hand_washing",
-                   "q35_01_contact_close_family", 
-                   "q35_03_contact_friends", 
+                   "q35_01_contact_close_family",
+                   "q35_03_contact_friends",
                    "q36_econ_worry",
-                   "q38_alcohol", 
-                   "q40_smoking", 
-                   "q42_sport", 
-                   "q47_self_reporting_health", 
+                   "q38_alcohol",
+                   "q40_smoking",
+                   "q42_sport",
+                   "q47_self_reporting_health",
                    "q48_chronic_illness",
                    "q49_health_limitations"),
     blocks = list(
@@ -457,6 +482,7 @@ linreg_theory <- jmv::linReg(
     ciStdEst = TRUE,
     durbin = TRUE,
     collin = TRUE)
+
 ```
 
 ### Regression model performance {.tabset .tabset-pills}
@@ -479,39 +505,431 @@ linreg_theory$modelComp
 linreg_theory$models				
 ```
 
-
 ```{r automatic stepwise regression model, comment = ""}
-# We are using the MASS package, which contains stepAIC() function for stepwise 
-# regression model selection. We again filter the dataset to only the variables 
-# specified with hypotheses
 
-
-linreg_stepwise <- data %>% dplyr::select(-c(country, 
-                                         q02_age_group,
-                                         q11_education,
-                                         q30_concern_infection_covid,
-                                         q31_concern_infection_friends,                
-                                         q33_01_concern_situation, 
-                                         q33_02_concern_low_control, 
-                                         q33_03_concern_survival_covid, 
-                                         q33_04_concern_change_employment, # ALSO REMOVING EDUCATION TEMPORALILY
-                                         q33_05_concern_infecting_others,
-                                         PHQ8))
-
-# Fit the full linear model using lm() function from base R
-full.model_MASS <- lm(PHQ8_t ~.,
-                      data = linreg_stepwise,
-                      na.action = na.exclude)
-
-# Stepwise regression model using MASS package, ranks on AIC
-step.model_AIC <- stepAIC(full.model_MASS, 
-                          direction = "both", 
-                          trace = FALSE)
-
-# Stepwise regression model using MASS package, ranks on BIC
-step.model_BIC <- stepAIC(full.model_MASS, 
-                          direction = "both",
-                          trace = FALSE, 
-                          k = log(nrow(linreg_stepwise)))
+linreg_stepwise2 <- jmv::linReg(
+    data = data,
+    dep = "PHQ8_t",
+    covs = "q02_age",
+    factors = vars("q01_gender",
+                   "q03_relationship_type",
+                   "q04_children", 
+                   "q18_02_soc_media", 
+                   "q20_public_info",
+                   "q34_02_face_mask",
+                   "q36_econ_worry",
+                   "q38_alcohol", 
+                   "q40_smoking", 
+                   "q47_self_reporting_health", 
+                   "q48_chronic_illness",
+                   "q49_health_limitations"),
+    blocks = list(
+        list(
+            "q01_gender",
+            "q02_age",
+            "q04_children",
+            "q36_econ_worry",
+            "q18_02_soc_media",
+            "q47_self_reporting_health",
+            "q49_health_limitations"),
+          list(
+            "q03_relationship_type",
+            "q20_public_info",
+            "q34_02_face_mask",
+            "q38_alcohol",
+            "q40_smoking",
+            "q48_chronic_illness")),
+    refLevels = list(
+        list(
+            var = "q01_gender",
+            ref = "female"),
+        list(
+            var = "q04_children",
+            ref = "no"),
+         list(
+            var = "q20_public_info",
+            ref = "no"),
+        list(
+            var = "q34_02_face_mask",
+            ref = "no"),
+        list(
+            var = "q36_econ_worry",
+            ref = "very_serious"),
+        list(
+            var = "q40_smoking",
+            ref = "yes"),
+        list(
+            var = "q38_alcohol",
+            ref = "yes"),
+        list(
+            var = "q18_02_soc_media",
+            ref = "yes"),
+        list(
+            var = "q03_relationship_type",
+            ref = "single"),
+        list(
+            var = "q47_self_reporting_health",
+            ref = "very_bad"),
+        list(
+            var = "q49_health_limitations",
+            ref = "limits"),
+        list(
+            var = "q48_chronic_illness",
+            ref = "yes")),
+    r2Adj = TRUE,
+    aic = TRUE,
+    bic = TRUE,
+    rmse = TRUE,
+    modelTest = TRUE,
+    anova = TRUE,
+    ci = TRUE,
+    stdEst = TRUE,
+    ciStdEst = TRUE,
+    durbin = TRUE,
+    collin = TRUE)
 
 ```
+
+### Stepwise model performance {.tabset .tabset-pills}
+
+#### Stepwise model fit measures
+
+```{r, comment = ""}
+linreg_stepwise2$modelFit
+```
+
+#### Stepwise model comparisons
+
+```{r, comment = ""}
+linreg_stepwise2$modelComp					
+```
+
+#### Stepwise model specific results
+
+```{r, comment = ""}
+linreg_stepwise2$models				
+```
+
+## Creation of the Covid-19 concern index, step 3: Reliability Analysis of the index items
+
+Secondly, we conduct a Reliability Analysis of the Covid-19 concern factor. We use a cutoff value of 0.7 for both McDonald's Omega and Cronbach's Alpha. The scale passes this cutoff and the statistics would not be improved if any of the items were dropped.
+
+```{r concern index reliability analysis, comment = ""}
+# To conduct the reliability analysis, we use the reliability() function from the 
+#  jmv package on the "test" data set (as opposed to the "train" dataset used for EFA).
+
+jmv::reliability(
+    data = data,
+    vars = vars("q30_concern_infection_covid", 
+                "q31_concern_infection_friends", 
+                "q33_01_concern_situation", 
+                "q33_02_concern_low_control", 
+                "q33_03_concern_survival_covid", 
+                "q33_05_concern_infecting_others"),
+    omegaScale = TRUE,
+    alphaItems = TRUE,
+    omegaItems = TRUE)
+```
+
+
+## Creation of the Covid-19 concern index, step 4: Confirmatory Factor Analysis of the index items
+
+```{r concern index Confirmatory Factor Analysis, comment = ""}
+# To conduct the CFA, we use the cfa() function from the jmv package on the "test" 
+# data set (as opposed to the "train" dataset used for EFA).
+
+jmv::cfa(
+    data = data,
+    factors = list(
+        list(
+            label = "Concern",
+            vars = c(
+                "q30_concern_infection_covid",
+                "q31_concern_infection_friends",
+                "q33_01_concern_situation",
+                "q33_02_concern_low_control",
+                "q33_03_concern_survival_covid",
+                "q33_05_concern_infecting_others"))),
+    resCov = list(),
+    ci = TRUE,
+    stdEst = TRUE,
+    factCovEst = FALSE,
+    fitMeasures = c("cfi", "tli", "rmsea", "srmr"),
+    corRes = TRUE)
+```
+
+```{r concern index creation and descriptives, comment = ""}
+# Creating the Covid-19-related concern/anxiety index, consisting of the average of 
+# the values of the multiple variables selected through factor analysis to
+# represent the underlying construct.
+
+concern_index <- apply(cbind(data$q30_concern_infection_covid,
+                             data$q31_concern_infection_friends,
+                             data$q33_01_concern_situation,
+                             data$q33_02_concern_low_control,
+                             data$q33_03_concern_survival_covid,
+                             data$q33_05_concern_infecting_others), 1, mean)
+
+#Adding the vector as an column to the existing dataset.
+
+data <- cbind(data, concern_index)
+
+#To summarize the concern_index variable, we use the descriptives() 
+# function from the jmv package.
+
+anx_index_descriptives <- jmv::descriptives(
+                                            data = data,
+                                            missing = TRUE,
+                                            vars = "concern_index",
+                                            sd = TRUE,
+                                            median = FALSE,
+                                            quart = TRUE,
+                                            range = TRUE,
+                                            box = TRUE)
+```
+
+### Covid-19 concern index results {.tabset .tabset-pills}
+
+#### Plots
+
+```{r anx index plot, comment = ""}
+anx_index_descriptives$plots
+```
+
+#### Descriptives
+
+```{r anx index results, comment = ""}
+anx_index_descriptives$descriptives	
+```
+
+# Path analysis with a simplified model
+
+## Moderated mediation model diagrams and pre-processing
+
+```{r Hayes model 76 pre-processing}
+# Before running the model, we need to transform the social media string 
+# dummy (yes/no) back to its numeric form, with similar operation for gender.
+
+levels(data$q18_02_soc_media) <- list("1" = "yes", "0" = "no")
+levels(data$q01_gender) <- list("0" = "female", "1" = "male", "2" = "other")
+data$q01_gender <- as.numeric(as.character(data$q01_gender))
+data$q18_02_soc_media <- as.numeric(as.character(data$q18_02_soc_media))
+
+# Centering continuous variables with scaling
+data_sem <- data %>% 
+            filter(q01_gender != 2, !is.na(concern_index)) %>% 
+            mutate(concern_index.c = scale(concern_index, scale = TRUE),
+                   PHQ8.c = scale(PHQ8_t, scale = TRUE),
+                   q02_age.c = scale(q02_age, scale = TRUE))
+
+# Labels for diagrams
+labels_H76 <- list(X = "Social Media", 
+                   M = "Concern", 
+                   Y = "Depression", 
+                   W = "Age", 
+                   Z = "Gender")
+```
+
+
+### Path analysis model structure {.tabset .tabset-pills}
+
+#### Conceptual diagram
+
+```{r fig.height=7, fig.width=9}
+pmacroModel(76,
+            labels = labels_H76,
+            xmargin = 0,
+            rady = 0.047,
+            radx = 0.09,
+            ylim = c(0.15, 0.8))
+```
+
+#### Statistical diagram with path names
+
+```{r fig.height=7, fig.width=9}
+statisticalDiagram(76,
+                   labels = labels_H76,
+                   whatLabel = "name",
+                   xmargin = 0.01,
+                   rady = 0.03,
+                   radx = 0.11,
+                   ylim = c(0.06, 0.95),
+                   xlim = c(0.01, 1))
+```
+
+## Moderated mediation model specification and results
+
+In the second step, we specify the key pathways and run the analysis, while bootstrapping the confidence intervals.
+
+```{r Hayes model 76, warning=FALSE, comment = ""}
+# Mediation-moderation analysis (path analysis framework, SEM) using lavaan package.
+
+# First, we specify the model pathways
+spec_mod <- "
+# Regressions
+concern_index.c ~ a1*q18_02_soc_media + a2*q02_age.c + a3*q01_gender + a4*q18_02_soc_media:q02_age.c + a5*q18_02_soc_media:q01_gender
+
+PHQ8.c ~ c1*q18_02_soc_media + c2*q02_age.c + c3*q01_gender + c4*q18_02_soc_media:q02_age.c + c5*q18_02_soc_media:q01_gender + b1*concern_index.c + b2*concern_index.c:q02_age.c + b3*concern_index.c:q01_gender
+
+#Mean and variance of age and gender moderators
+q02_age.c ~ q02_age.c.mean*1
+q02_age.c ~~ q02_age.c.var*q02_age.c
+q01_gender ~ q01_gender.mean*1
+q01_gender ~~ q01_gender.var*q01_gender
+
+# Effect specifications
+indirect := (a1 + a4*q02_age.c.mean + a5*q01_gender.mean)*(b1 + b2*q02_age.c.mean + b3*q01_gender.mean)
+direct := c1 + c4*q02_age.c.mean + c5*q01_gender.mean
+total := direct + indirect
+prop.mediated := indirect / total
+
+# Component effects (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
+XonM.mean.male := a1 + a4*q02_age.c.mean + a5*1
+XonM.mean.female := a1 + a4*q02_age.c.mean + a5*0
+XonM.mean.avg := a1 + a4*q02_age.c.mean + a5*q01_gender.mean
+
+MonY.mean.male := b1 + b2*q02_age.c.mean + b3*1
+MonY.mean.female := b1 + b2*q02_age.c.mean + b3*0
+MonY.mean.avg := b1 + b2*q02_age.c.mean + b3*q01_gender.mean
+
+# Component effects conditional on moderators (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
+XonM.blw.male := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*1
+XonM.blw.female := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*0
+XonM.blw.avg := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*q01_gender.mean
+
+MonY.blw.male := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*1
+MonY.blw.female := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*0
+MonY.blw.avg := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*q01_gender.mean
+
+XonM.abv.male := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*1
+XonM.abv.female := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*0
+XonM.abv.avg := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*q01_gender.mean
+
+MonY.abv.male := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*1
+MonY.abv.female := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*0
+MonY.abv.avg := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*q01_gender.mean
+
+# Indirect effects conditional on moderators
+indirect.blw.male := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*1)
+indirect.blw.female := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*0)
+indirect.blw.avg := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+
+indirect.abv.male := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*1)
+indirect.abv.female := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*0)
+indirect.abv.avg := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+
+# Direct effects conditional on moderators
+direct.blw.male := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*1
+direct.blw.female := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*0
+direct.blw.avg := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*q01_gender.mean
+
+direct.abv.male := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*1
+direct.abv.female := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*0
+direct.abv.avg := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*q01_gender.mean
+
+# Total effects conditional on moderators
+total.blw.male := direct.blw.male + indirect.blw.male
+total.blw.female := direct.blw.female + indirect.blw.female
+total.blw.avg := direct.blw.avg + indirect.blw.avg
+
+total.abv.male := direct.abv.male + indirect.abv.male
+total.abv.female := direct.abv.female + indirect.abv.female
+total.abv.avg := direct.abv.avg + indirect.abv.avg
+
+# Proportion mediated conditional on moderators
+prop.med.blw.male := indirect.blw.male / total.blw.male
+prop.med.blw.female := indirect.blw.female / total.blw.female
+prop.med.blw.avg := indirect.blw.avg / total.blw.avg
+
+prop.med.abv.male := indirect.abv.male / total.abv.male
+prop.med.abv.female := indirect.abv.female / total.abv.male
+prop.med.abv.avg := indirect.abv.avg / total.abv.avg"
+
+# For reproducibility of results (using bootstrap)
+set.seed(2021)
+
+# Secondly, we fit/estimate the model and we use bootstrap for robustness.
+fit_mod <- lavaan::sem(model = spec_mod,
+               data = data_sem,
+               se = "bootstrap",
+               bootstrap = 1000)
+
+# Labels for statistical diagrams
+labels_stats_H76 <- list(X = "q18_02_soc_media",
+                         M = "concern_index.c",
+                         Y = "PHQ8.c",
+                         W = "q02_age.c",
+                         Z = "q01_gender")
+```
+
+### Path analysis model summary, estimates and statistical diagram {.tabset .tabset-pills}
+
+#### Diagram with unstandardized coefficients
+
+```{r fig.height=7, fig.width=9}
+statisticalDiagram(76,
+                   labels = labels_stats_H76,
+                   fit = fit_mod,
+                   whatLabel = "est",
+                   xmargin = 0.01,
+                   rady = 0.03,
+                   radx = 0.158,
+                   ylim = c(0.06, 0.95),
+                   xlim = c(0.01, 1))
+```
+
+#### Diagram with standardized coefficients
+
+```{r fig.height=7, fig.width=9}
+statisticalDiagram(76,
+                   labels = labels_stats_H76,
+                   fit = fit_mod,
+                   whatLabel = "std",
+                   xmargin = 0.01,
+                   rady = 0.03,
+                   radx = 0.158,
+                   ylim = c(0.06, 0.95),
+                   xlim = c(0.01, 1))
+```
+
+#### Detailed model summary
+
+```{r,  comment = ""}
+lavaan::summary(fit_mod, 
+                rsquare = TRUE, 
+                ci = TRUE,
+                fit.measures = TRUE,
+                standardize = TRUE)
+```
+
+#### Table of model estimates
+
+```{r}
+estimates <- parameterEstimates(fit_mod) %>% 
+                    filter(op == "~")
+
+p_adj <- p.adjust(estimates$pvalue, method = "bonferroni")
+
+estimates <- cbind(estimates, p_adj)
+
+kableExtra::kbl(estimates) %>%
+kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
+                    kableExtra::row_spec(which(estimates$p_adj < 0.05), bold = TRUE)
+```
+
+#### Table of defined parameters
+
+```{r}
+parameters <- parameterEstimates(fit_mod) %>% 
+                    filter(op == ":=") %>% 
+                    select(-c(op, lhs, rhs))
+
+p_adj <- p.adjust(parameters$pvalue, method = "holm")
+parameters <- cbind(parameters, p_adj)
+
+
+kableExtra::kbl(parameters) %>%
+kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
+                    kableExtra::row_spec(which(parameters$p_adj < 0.05), bold = TRUE)
+```
+
