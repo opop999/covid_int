@@ -57,7 +57,7 @@ h4.date {
 ```
 
 
-# Analysis of the Czech sample
+# Analysis of the international sample
 
 ## Loading the dataset, required R packages and data wrangling
 
@@ -908,7 +908,7 @@ lavaan::summary(fit_mod,
 estimates <- parameterEstimates(fit_mod) %>% 
                     filter(op == "~")
 
-p_adj <- p.adjust(estimates$pvalue, method = "bonferroni")
+p_adj <- p.adjust(estimates$pvalue, method = "holm")
 
 estimates <- cbind(estimates, p_adj)
 
