@@ -76,6 +76,7 @@ library(tidytext)
 library(tidyverse)
 library(haven)
 library(jmv)
+library(ggsci)
 
 # We load the original Czech dataset (in SPSS format) from a local directory.
 data <- zap_labels(haven::read_sav(file = "INTERNATIONAL DATASET_12 Oct_final.sav"))
@@ -225,6 +226,100 @@ data <- data %>%
   filter(country != "CZ")
 
 
+```
+
+
+
+### Visuals {.tabset .tabset-pills}
+
+#### Depression by gender and age group
+
+
+```{r}
+data %>% 
+  filter(q01_gender != "other", q02_age_group != "NA") %>% 
+  ggplot(aes(y = PHQ8, x = q01_gender)) +
+         geom_boxplot(na.rm = TRUE, aes(color = q01_gender)) +
+         theme_bw() +
+         theme(legend.position = "none") +
+         facet_grid(cols = vars(q02_age_group)) + 
+         scale_color_npg()
+```
+#### Age and depression by gender
+
+```{r}
+# For reproducibility of results
+set.seed(2021)
+
+data %>% 
+  filter(q01_gender != "other") %>% 
+  ggplot(aes(x = q02_age, y = PHQ8)) +
+         geom_jitter(na.rm	= TRUE, size = 1, alpha = 0.1) +
+         stat_smooth(method = "gam", formula = y ~ x, na.rm	= TRUE, aes(color = q01_gender)) +
+         theme_bw() +
+         scale_x_continuous(limits = c(16, 92), 
+                     breaks = seq(from = 16, to = 92, by = 8)) + 
+         scale_color_npg() 
+```
+
+#### Depression by gender and relationship type
+```{r}
+# For reproducibility of results
+set.seed(2021)
+
+data %>% 
+  filter(q01_gender != "other", q03_relationship_type != "NA") %>% 
+  ggplot(aes(y = PHQ8, x = q01_gender)) +
+         geom_boxplot(na.rm = TRUE, aes(color = q01_gender)) +
+         theme_bw() +
+         theme(legend.position = "none") +
+         facet_grid(cols = vars(q03_relationship_type)) + 
+         scale_color_npg()
+```
+#### Depression by gender and education attainment
+```{r}
+# For reproducibility of results
+set.seed(2021)
+
+data %>%
+  filter(q01_gender != "other", q11_education != "NA") %>% 
+  ggplot(aes(y = PHQ8, x = q01_gender)) +
+         geom_boxplot(na.rm = TRUE, aes(color = q01_gender)) +
+         theme_bw() +
+         theme(legend.position = "none") +
+         facet_grid(cols = vars(q11_education)) + 
+         scale_color_npg() 
+```
+
+#### Depression by gender and children
+```{r}
+# For reproducibility of results
+set.seed(2021)
+
+data %>%
+  filter(q01_gender != "other") %>% 
+  ggplot(aes(y = PHQ8, x = q01_gender)) +
+         geom_boxplot(na.rm = TRUE, aes(color = q01_gender)) +
+         theme_bw() +
+         scale_x_discrete(labels = c("Four", "Six")) +
+         theme(legend.position = "none") +
+         facet_grid(cols = vars(q04_children)) + 
+         scale_color_npg()
+```
+
+#### Depression by gender and SRH
+```{r}
+# For reproducibility of results
+set.seed(2021)
+
+data %>%
+  filter(q01_gender != "other", q47_self_reporting_health != "NA") %>% 
+  ggplot(aes(y = PHQ8, x = q01_gender)) +
+         geom_boxplot(na.rm = TRUE, aes(color = q01_gender)) +
+         theme_bw() +
+         theme(legend.position = "none") +
+         facet_grid(cols = vars(q47_self_reporting_health)) + 
+         scale_color_npg()
 ```
 
 ## Sample descriptive statistics: Depression index (PHQ8)
