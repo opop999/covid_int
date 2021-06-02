@@ -778,56 +778,64 @@ q01_gender ~ q01_gender.mean*1
 q01_gender ~~ q01_gender.var*q01_gender
 
 # Effect specifications
+XonM := a1 + a4*q02_age.c.mean + a5*q01_gender.mean
+MonY := b1 + b2*q02_age.c.mean + b3*q01_gender.mean
 indirect := (a1 + a4*q02_age.c.mean + a5*q01_gender.mean)*(b1 + b2*q02_age.c.mean + b3*q01_gender.mean)
 direct := c1 + c4*q02_age.c.mean + c5*q01_gender.mean
 total := direct + indirect
 prop.mediated := indirect / total
 
-# Component effects (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
+# Component effects conditional on moderators (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
 XonM.mean.male := a1 + a4*q02_age.c.mean + a5*1
 XonM.mean.female := a1 + a4*q02_age.c.mean + a5*0
-XonM.mean.avg := a1 + a4*q02_age.c.mean + a5*q01_gender.mean
+
+XonM.blw.male := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*1
+XonM.blw.female := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*0
+XonM.blw.avg := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*q01_gender.mean
+
+XonM.abv.male := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*1
+XonM.abv.female := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*0
+XonM.abv.avg := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*q01_gender.mean
 
 MonY.mean.male := b1 + b2*q02_age.c.mean + b3*1
 MonY.mean.female := b1 + b2*q02_age.c.mean + b3*0
-MonY.mean.avg := b1 + b2*q02_age.c.mean + b3*q01_gender.mean
 
-# Component effects conditional on moderators (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
-XonM.blw.male := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*1
-XonM.blw.female := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*0
-XonM.blw.avg := a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*q01_gender.mean
+MonY.blw.male := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*1
+MonY.blw.female := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*0
+MonY.blw.avg := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*q01_gender.mean
 
-MonY.blw.male := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*1
-MonY.blw.female := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*0
-MonY.blw.avg := b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*q01_gender.mean
-
-XonM.abv.male := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*1
-XonM.abv.female := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*0
-XonM.abv.avg := a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*q01_gender.mean
-
-MonY.abv.male := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*1
-MonY.abv.female := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*0
-MonY.abv.avg := b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*q01_gender.mean
+MonY.abv.male := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*1
+MonY.abv.female := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*0
+MonY.abv.avg := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*q01_gender.mean
 
 # Indirect effects conditional on moderators
-indirect.blw.male := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*1)
-indirect.blw.female := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*0)
-indirect.blw.avg := (a1 + a4*(q02_age.c.mean-sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean-sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+indirect.mean.male := (a1 + a4*q02_age.c.mean + a5*1)*(b1 + b2*q02_age.c.mean + b3*1)
+indirect.mean.female := (a1 + a4*q02_age.c.mean + a5*0)*(b1 + b2*q02_age.c.mean + b3*0)
 
-indirect.abv.male := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*1)
-indirect.abv.female := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*0)
-indirect.abv.avg := (a1 + a4*(q02_age.c.mean+sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean+sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+indirect.blw.male := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*1)
+indirect.blw.female := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*0)
+indirect.blw.avg := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*q01_gender.mean)
+
+indirect.abv.male := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*1)
+indirect.abv.female := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*0)
+indirect.abv.avg := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*q01_gender.mean)
 
 # Direct effects conditional on moderators
-direct.blw.male := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*1
-direct.blw.female := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*0
-direct.blw.avg := c1 + c4*(q02_age.c.mean-sqrt(q02_age.c.var)) + c5*q01_gender.mean
+direct.mean.male := c1 + c4*q02_age.c.mean + c5*1
+direct.mean.female := c1 + c4*q02_age.c.mean + c5*0
 
-direct.abv.male := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*1
-direct.abv.female := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*0
-direct.abv.avg := c1 + c4*(q02_age.c.mean+sqrt(q02_age.c.var)) + c5*q01_gender.mean
+direct.blw.male := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*1
+direct.blw.female := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*0
+direct.blw.avg := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*q01_gender.mean
+
+direct.abv.male := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*1
+direct.abv.female := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*0
+direct.abv.avg := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*q01_gender.mean
 
 # Total effects conditional on moderators
+total.mean.male := direct.mean.male + indirect.mean.male
+total.mean.female := direct.mean.female + indirect.mean.female
+
 total.blw.male := direct.blw.male + indirect.blw.male
 total.blw.female := direct.blw.female + indirect.blw.female
 total.blw.avg := direct.blw.avg + indirect.blw.avg
@@ -837,6 +845,9 @@ total.abv.female := direct.abv.female + indirect.abv.female
 total.abv.avg := direct.abv.avg + indirect.abv.avg
 
 # Proportion mediated conditional on moderators
+prop.med.mean.male := indirect.mean.male / total.mean.male
+prop.med.mean.female := indirect.mean.female / total.mean.female
+
 prop.med.blw.male := indirect.blw.male / total.blw.male
 prop.med.blw.female := indirect.blw.female / total.blw.female
 prop.med.blw.avg := indirect.blw.avg / total.blw.avg
@@ -905,8 +916,9 @@ lavaan::summary(fit_mod,
 #### Table of model estimates
 
 ```{r}
-estimates <- parameterEstimates(fit_mod) %>% 
-                    filter(op == "~")
+estimates <- parameterEstimates(fit_mod, standardized = TRUE) %>% 
+                    filter(op == "~") %>% 
+                    select(-c(std.nox))
 
 p_adj <- p.adjust(estimates$pvalue, method = "holm")
 
@@ -920,13 +932,13 @@ kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) 
 #### Table of defined parameters
 
 ```{r}
-parameters <- parameterEstimates(fit_mod) %>% 
+parameters <- parameterEstimates(fit_mod, standardized = TRUE) %>% 
                     filter(op == ":=") %>% 
-                    select(-c(op, lhs, rhs))
+                    select(-c(op, lhs, rhs, std.nox))
 
 p_adj <- p.adjust(parameters$pvalue, method = "holm")
-parameters <- cbind(parameters, p_adj)
 
+parameters <- cbind(parameters, p_adj)
 
 kableExtra::kbl(parameters) %>%
 kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
