@@ -1040,3 +1040,71 @@ kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) 
                     kableExtra::row_spec(which(parameters$p_adj < 0.05), bold = TRUE)
 ```
 
+
+# Clustering (K-Medoids)
+
+```{r}
+library(fpc)
+library(NbClust)
+library(cluster)
+library(factoextra)
+library(tidyr)
+
+data_scaled <- na.omit(scale(data_corr))
+
+# Calculate the matrix of distance, we can choose from many methods
+
+m.distance <- get_dist(data_scaled, method = "kendall")
+
+fviz_dist(m.distance, gradient = list(low = "blue", mid = "white", high = "red"))
+
+fviz_nbclust(data_scaled, pam, method = "wss")
+fviz_nbclust(data_scaled, pam, method = "silhouette")
+fviz_nbclust(data_scaled, pam, method = "gap_stat")
+
+resnumclust <- NbClust(data_scaled, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
+resnumclust
+fviz_nbclust(resnumclust)
+
+#calculamos los dos clústers
+pam9 <- pam(data_scaled, 9)
+print(pam9)
+pam2 <- pam(data_scaled, 2)
+print(pam2)
+
+#probamos algunas visualizaciones
+fviz_cluster(pam2, data = data_scaled, ellipse.type = "norm")
+fviz_cluster(pam9, data = data_scaled)
+
+res9 <- hcut(data_scaled, k = 9, stand = TRUE, method = "median")
+fviz_dend(res9, rect = TRUE, cex = 0.5,
+          k_colors = "simpsons")
+
+#le pedimos un pequeño resumen 
+USArrests %>%
+  mutate(Cluster = pam9$clustering) %>%
+  group_by(Cluster) %>%
+  summarise_all("mean")
+
+#lo pegamos en nuestro data frame y lo dibujamos ;)
+data_scaled <- USArrests
+data_scaled
+data_scaled <- scale(USArrests)
+data_scaled
+data_scaled <- as.data.frame(df)
+data_scaled
+data_scaled$clus <- as.factor(pam9$clustering)
+data_scaled
+
+data_scaled$clus <- factor(data_scaled$clus)
+data_long <- gather(data_scaled, caracteristica, valor, Murder:Rape, factor_key = TRUE)
+data_long
+
+ggplot(data_long, aes(as.factor(x = caracteristica), y = valor, group = clus, colour = clus)) + 
+  stat_summary(fun = mean, geom = "pointrange", size = 1, aes(shape = clus)) +
+  stat_summary(geom = "line")
+  #geom_point(aes(shape=clus))
+
+
+```
+
