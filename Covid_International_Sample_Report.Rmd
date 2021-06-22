@@ -64,17 +64,19 @@ h4.date {
 # The following packages might need to be installed onto your version 
 # of R prior to the running of the code below.
 
-library(udpipe)
 library(MASS)
 library(lavaan)
 library(processR)
-library(wordcloud)
 library(corrplot)
 library(tidytext)
 library(tidyverse)
 library(haven)
 library(jmv)
 library(ggsci)
+library(fpc)
+library(NbClust)
+library(cluster)
+library(factoextra)
 
 # We load the original Czech dataset (in SPSS format) from a local directory.
 data <- zap_labels(haven::read_sav(file = "INTERNATIONAL DATASET_12 Oct_final.sav"))
@@ -659,7 +661,6 @@ data %>%
          coord_flip()
 ```
 
-
 #### Depression and health
 ```{r}
 data %>%
@@ -708,7 +709,6 @@ data %>%
          coord_flip()
 
 ```
-
 
 ```{r PHQ8 transformation, include=FALSE}
 # Normality transformation: finding lambda for entire model that 
@@ -787,7 +787,6 @@ corrplot(cor(data_corr,
              sig.level = .05, 
              mar = c(0,0,1,0))
 ```
-
 
 ```{r theory-driven regression model, comment = ""}
 
@@ -1124,7 +1123,8 @@ data %>%
                axis.ticks.x = element_blank(), 
                axis.line.x = element_blank(), 
                panel.grid.major.x = element_blank(), 
-               panel.grid.minor = element_blank())
+               panel.grid.minor = element_blank()) + 
+         ylab("Concern Index")
 
 data %>% 
    filter(concern_index != "NA") %>% 
@@ -1134,7 +1134,8 @@ data %>%
                            labels = seq(0, 10, 1), 
                            limits = c(0, 10)) +
          theme_bw() +
-         theme(legend.position = "none")
+         theme(legend.position = "none") + 
+         xlab("Concern Index")
 ```
 
 #### Descriptives
@@ -1388,67 +1389,74 @@ kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) 
 
 # Clustering (K-Medoids)
 
-```{r}
-library(fpc)
-library(NbClust)
-library(cluster)
-library(factoextra)
+We are conducting clustering with the K-Medoids algorithm to find distinct groups in our dataset. We are only using a subset of the dataset, which contains values that we used in the previous step within the path model - age, gender, social media, concern index and PHQ8. The reasoning is to supplement the insights from the path model, while also limiting ourselves only to the core variables, most of them showing relatively strong effects in the regression models.
+```{r message=FALSE, warning=FALSE}
 
-data_scaled <- na.omit(scale(data_corr))
+set.seed(2021)
+
+data_scaled <- data %>% 
+  select(q01_gender, q02_age, q18_02_soc_media, PHQ8, concern_index) %>% 
+  na.omit() %>% 
+  scale()
+
+# data_scaled <- na.omit(scale(data_corr))
 
 # Calculate the matrix of distance, we can choose from many methods
 
-m.distance <- get_dist(data_scaled, method = "kendall")
+# m.distance <- get_dist(data_scaled, method = "kendall")
+# 
+# fviz_dist(m.distance, gradient = list(low = "blue", mid = "white", high = "red"))
+# 
+# fviz_nbclust(data_scaled, pam, method = "wss")
+# fviz_nbclust(data_scaled, pam, method = "silhouette")
+# fviz_nbclust(data_scaled, pam, method = "gap_stat")
+# 
+# resnumclust <- NbClust(data_scaled, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
 
-fviz_dist(m.distance, gradient = list(low = "blue", mid = "white", high = "red"))
+# resnumclust
+# fviz_nbclust(resnumclust)
 
-fviz_nbclust(data_scaled, pam, method = "wss")
-fviz_nbclust(data_scaled, pam, method = "silhouette")
-fviz_nbclust(data_scaled, pam, method = "gap_stat")
+# 3 as the suggested number of clusters
+pam3 <- pam(data_scaled, 3)
 
-resnumclust <- NbClust(data_scaled, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
-resnumclust
-fviz_nbclust(resnumclust)
+# res3 <- hcut(data_scaled, k = 3, stand = TRUE, method = "median")
+# fviz_dend(res3, rect = TRUE, cex = 0.5,
+#           k_colors = "simpsons")
 
-#
-pam9 <- pam(data_scaled, 9)
-print(pam9)
-pam2 <- pam(data_scaled, 2)
-print(pam2)
 
-#
-fviz_cluster(pam2, data = data_scaled, ellipse.type = "norm")
-fviz_cluster(pam9, data = data_scaled)
 
-res9 <- hcut(data_scaled, k = 9, stand = TRUE, method = "median")
-fviz_dend(res9, rect = TRUE, cex = 0.5,
-          k_colors = "simpsons")
+# cluster_sum <- as_tibble(data_scaled) %>%
+#   mutate(cluster = as_factor(pam3$clustering)) %>%
+#   group_by(cluster) %>%
+#   summarise_all("mean")
 
-#
-USArrests %>%
-  mutate(Cluster = pam9$clustering) %>%
-  group_by(Cluster) %>%
-  summarise_all("mean")
 
-#
-data_scaled <- USArrests
-data_scaled
-data_scaled <- scale(USArrests)
-data_scaled
-data_scaled <- as.data.frame(df)
-data_scaled
-data_scaled$clus <- as.factor(pam9$clustering)
-data_scaled
 
-data_scaled$clus <- factor(data_scaled$clus)
-data_long <- gather(data_scaled, caracteristica, valor, Murder:Rape, factor_key = TRUE)
-data_long
+```
 
-ggplot(data_long, aes(as.factor(x = caracteristica), y = valor, group = clus, colour = clus)) + 
-  stat_summary(fun = mean, geom = "pointrange", size = 1, aes(shape = clus)) +
-  stat_summary(geom = "line")
-  #geom_point(aes(shape=clus))
+### Clustering visualisations {.tabset .tabset-pills}
 
+#### Visualisation of the clusters
+
+```{r}
+cluster_pallete <- c("#E64B3599", "#4DBBD599", "#00A08799")
+
+fviz_cluster(pam3, data = data_scaled, ellipse.type = "norm", palette = cluster_pallete, ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
+```
+
+#### Mean values of the distinct groups
+
+```{r}
+data_scaled_df <- as_tibble(data_scaled)
+data_scaled_df$cluster <- as_factor(pam3$clustering)
+data_scaled_df_long <- data_scaled_df %>% gather(variable, value, q01_gender:concern_index, factor_key = TRUE)
+
+ggplot(data_scaled_df_long, aes(x = variable, y = value, group = cluster, colour = cluster)) + 
+       stat_summary(fun = mean, geom = "pointrange", size = 1, aes(shape = cluster)) +
+       stat_summary(geom = "line") +
+       scale_color_npg() + 
+       ggtitle("Average value of selected variables per cluster") + 
+       theme_bw()
 
 ```
 
