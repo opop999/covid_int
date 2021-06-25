@@ -72,10 +72,10 @@ library(tidytext)
 library(tidyverse)
 library(haven)
 library(jmv)
-library(ggsci)
-library(fpc)
-library(NbClust)
+# library(fpc)
+# library(NbClust)
 library(cluster)
+library(kableExtra)
 library(factoextra)
 
 # We load the original Czech dataset (in SPSS format) from a local directory.
@@ -145,8 +145,8 @@ data_full <- data %>%
             `5` = "CZ",
             `6` = "SW"),
             q01_gender = recode_factor(as_factor(Q3),
-            `1` = "female",
-            `2` = "male",
+            `1` = "male",
+            `2` = "female",
             `3` = "other"),
             q02_age = Q4,
             q02_age_group = recode_factor(as_factor(Q4_AGE_r),
@@ -236,26 +236,12 @@ data <- data_full %>%
 #### Population pyramid of the full sample
 
 ```{r}
-data_full_1_3 <- data_full %>% 
-  filter(country != "IT", 
-         country != "FR", 
-         country != "PL") %>% 
-  filter(q02_age != "NA", q01_gender != "NA") 
-
-data_full_4_6 <- data_full %>% 
-  filter(country != "UK", 
-         country != "CZ", 
-         country != "SW") %>%  
-  filter(q02_age != "NA", q01_gender != "NA")
-
-data_full_1_3 %>%
+data_full[data_full$country %in% c("IT", "FR", "PL") & !is.na(data_full$q02_age),] %>%
   ggplot(aes(x = q02_age, 
              fill = q01_gender)) + 
-  geom_bar(data = subset(data_full_1_3, 
-                         q01_gender == "female")) + 
-  geom_bar(data = subset(data_full_1_3, 
-                         q01_gender == "male"), 
-                         aes(y = ..count..*(-1))) + 
+  geom_bar(data = data_full[data_full$country %in% c("IT", "FR", "PL") & data_full$q01_gender == "female" & !is.na(data_full$q02_age),]) + 
+  geom_bar(data = data_full[data_full$country %in% c("IT", "FR", "PL") & data_full$q01_gender == "male" & !is.na(data_full$q02_age),], 
+           aes(y = ..count..*(-1))) + 
   scale_y_continuous(breaks = seq(-250, 250, 50), 
                      labels = abs(seq(-250, 250, 50)), 
                      limits = c(-100, 100)) + 
@@ -264,17 +250,18 @@ data_full_1_3 %>%
                      limits = c(15, 100)) +
   coord_flip() +
   theme_bw() +
+  theme(legend.title = element_blank()) +
   facet_grid(cols = vars(country)) + 
-  scale_color_npg() 
+  scale_fill_manual(values = c("#E64B35CC", "#00A087CC")) +
+  xlab("Age") +
+  ylab("Count")
 
-data_full_4_6 %>%
+data_full[data_full$country %in% c("UK", "CZ", "SW") & !is.na(data_full$q02_age),]  %>%
   ggplot(aes(x = q02_age, 
              fill = q01_gender)) + 
-  geom_bar(data = subset(data_full_4_6, 
-                         q01_gender == "female")) + 
-  geom_bar(data = subset(data_full_4_6, 
-                         q01_gender == "male"), 
-                         aes(y = ..count..*(-1))) + 
+  geom_bar(data = data_full[data_full$country %in% c("UK", "CZ", "SW") & data_full$q01_gender == "female" & !is.na(data_full$q02_age),]) + 
+  geom_bar(data = data_full[data_full$country %in% c("UK", "CZ", "SW") & data_full$q01_gender == "male" & !is.na(data_full$q02_age),], 
+           aes(y = ..count..*(-1))) + 
   scale_y_continuous(breaks = seq(-250, 250, 50), 
                      labels = abs(seq(-250, 250, 50)), 
                      limits = c(-100, 100)) + 
@@ -283,8 +270,11 @@ data_full_4_6 %>%
                      limits = c(15, 100)) +
   coord_flip() +
   theme_bw() +
+  theme(legend.title = element_blank()) +
   facet_grid(cols = vars(country)) + 
-  scale_color_npg() 
+  scale_fill_manual(values = c("#E64B35CC", "#00A087CC")) +
+  xlab("Age") +
+  ylab("Count")
 
 ```
 
@@ -313,7 +303,7 @@ descriptives$descriptives
 data %>%
   filter(PHQ8 != "NA") %>% 
   ggplot(aes(y = PHQ8)) +
-         geom_boxplot(fill = "#4DBBD599") +
+         geom_boxplot(fill = "#4DBBD5CC") +
          theme_bw() +
          scale_y_continuous(breaks = seq(0, 24, 1), 
                             labels = seq(0, 24, 1), 
@@ -329,7 +319,7 @@ data %>%
 data %>% 
   filter(PHQ8 != "NA") %>% 
   ggplot(aes(x = as_factor(PHQ8))) +
-         geom_bar(fill = "#4DBBD599") +
+         geom_bar(fill = "#4DBBD5CC") +
          scale_y_continuous(breaks = seq(0, 700, 50), 
                             labels = seq(0, 700, 50), 
                             limits = c(0, 700)) +
@@ -372,40 +362,43 @@ data %>%
   filter(q01_gender %in% c("male", "female"), 
          q02_age_group != "NA") %>% 
   ggplot(aes(x = q01_gender)) +
-         geom_bar(fill = "#4DBBD599") +
+         geom_bar(aes(fill = q01_gender)) +
          scale_y_continuous(breaks = seq(0, 3500, 500), 
                             labels = seq(0, 3500, 500), 
                             limits = c(0, 3500)) +
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
-         facet_grid(cols = vars(q02_age_group))
+         facet_grid(cols = vars(q02_age_group)) +
+         scale_fill_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC"))
 
 data %>% 
   filter(q01_gender %in% c("male", "female"), 
          q03_relationship_type != "NA") %>% 
   ggplot(aes(x = q01_gender)) +
-         geom_bar(fill = "#4DBBD599") +
+         geom_bar(aes(fill = q01_gender)) +
          scale_y_continuous(breaks = seq(0, 2500, 250), 
                             labels = seq(0, 2500, 250), 
                             limits = c(0, 2500)) +
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
          facet_grid(cols = vars(q03_relationship_type), 
-                    rows = vars(q04_children))
+                    rows = vars(q04_children)) +
+         scale_fill_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC"))
 
 data %>% 
   filter(q01_gender %in% c("male", "female"), 
          q11_education != "NA", 
          q02_age_group != "NA") %>% 
   ggplot(aes(x = q01_gender)) +
-         geom_bar(fill = "#4DBBD599") +
+         geom_bar(aes(fill = q01_gender)) +
          scale_y_continuous(breaks = seq(0, 1600, 250), 
                             labels = seq(0, 1600, 250), 
                             limits = c(0, 1600)) +
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
          facet_grid(cols = vars(q11_education), 
-                    rows = vars(q02_age_group))
+                    rows = vars(q02_age_group)) +
+         scale_fill_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC"))
 
 ```
 
@@ -423,9 +416,9 @@ data_full %>%
                       aes(color = q01_gender)) +
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
-         facet_grid(cols = vars(country)) + 
-         scale_color_npg() + 
-         ggtitle("Countries")
+         facet_grid(cols = vars(country)) +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
+         ggtitle("Countries") 
 
 data %>% 
   filter(q01_gender != "other", 
@@ -437,7 +430,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
          facet_grid(cols = vars(q02_age_group)) + 
-         scale_color_npg() + 
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Age groups")
 
 # For reproducibility of results
@@ -462,7 +455,7 @@ data %>%
          breaks = seq(from = 16, 
                       to = 92, 
                       by = 8)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          xlab("Age") + 
          ggtitle("Age groups")
 
@@ -476,7 +469,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
          facet_grid(cols = vars(q03_relationship_type)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Relationship type")
 
 data %>%
@@ -489,7 +482,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
          facet_grid(cols = vars(q11_education)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Educational attainment")
 
 data %>%
@@ -501,7 +494,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.x = element_blank()) +
          facet_grid(cols = vars(q04_children)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Children")
 ```
 
@@ -518,7 +511,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q18_02_soc_media), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Social media") + 
          coord_flip()
 
@@ -533,7 +526,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q20_public_info), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Enough information") + 
          coord_flip()
 
@@ -548,7 +541,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q34_02_face_mask), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Face mask wearing") + 
          coord_flip()
 
@@ -563,7 +556,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q34_07_hand_washing), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Increased hand washing") + 
          coord_flip()
 data %>%
@@ -577,7 +570,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q36_econ_worry), rows = vars(q02_age_group)) + 
-         scale_color_npg() + 
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Perceived economic impact of Covid") + 
          coord_flip()
 
@@ -596,7 +589,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q35_01_contact_close_family), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Frequency of physical contact - close family") + 
          coord_flip()
 
@@ -611,7 +604,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q35_03_contact_friends), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Frequency of physical contact - friends") + 
          coord_flip()
 
@@ -626,7 +619,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q38_alcohol), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Alcohol") + 
          coord_flip()
 
@@ -641,7 +634,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q40_smoking), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Smoking") + 
          coord_flip()
 
@@ -656,7 +649,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q42_sport ), rows = vars(q02_age_group)) + 
-         scale_color_npg() +
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Sport") + 
          coord_flip()
 ```
@@ -674,7 +667,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q47_self_reporting_health), rows = vars(q02_age_group)) + 
-         scale_color_npg() + 
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Self-reported Health") + 
          coord_flip()
 
@@ -689,7 +682,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q48_chronic_illness), rows = vars(q02_age_group)) + 
-         scale_color_npg() + 
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) +
          ggtitle("Chronic illness") + 
          coord_flip()
 
@@ -704,7 +697,7 @@ data %>%
          theme_bw() +
          theme(legend.position = "none", axis.title.y = element_blank()) +
          facet_grid(cols = vars(q49_health_limitations ), rows = vars(q02_age_group)) + 
-         scale_color_npg() + 
+         scale_color_manual(values = c("female" = "#E64B35CC", "male" = "#00A087CC")) + 
          ggtitle("Health limitations") + 
          coord_flip()
 
@@ -1058,13 +1051,12 @@ jmv::cfa(
     factors = list(
         list(
             label = "Concern",
-            vars = c(
-                "q30_concern_infection_covid",
-                "q31_concern_infection_friends",
-                "q33_01_concern_situation",
-                "q33_02_concern_low_control",
-                "q33_03_concern_survival_covid",
-                "q33_05_concern_infecting_others"))),
+            vars = c("q30_concern_infection_covid",
+                     "q31_concern_infection_friends",
+                     "q33_01_concern_situation",
+                     "q33_02_concern_low_control",
+                     "q33_03_concern_survival_covid",
+                     "q33_05_concern_infecting_others"))),
     resCov = list(),
     ci = TRUE,
     stdEst = TRUE,
@@ -1092,8 +1084,7 @@ data <- cbind(data, concern_index)
 #To summarize the concern_index variable, we use the descriptives() 
 # function from the jmv package.
 
-anx_index_descriptives <- jmv::descriptives(
-                                            data = data,
+anx_index_descriptives <- jmv::descriptives(data = data,
                                             missing = TRUE,
                                             vars = "concern_index",
                                             sd = TRUE,
@@ -1112,7 +1103,7 @@ anx_index_descriptives <- jmv::descriptives(
 data %>%
   filter(concern_index != "NA") %>% 
   ggplot(aes(y = concern_index)) +
-         geom_boxplot(fill = "#4DBBD599") +
+         geom_boxplot(fill = "#4DBBD5CC") +
          theme_bw() +
          scale_y_continuous(breaks = seq(0, 10, 1), 
                             labels = seq(0, 10, 1), 
@@ -1129,7 +1120,7 @@ data %>%
 data %>% 
    filter(concern_index != "NA") %>% 
    ggplot(aes(x = concern_index)) +
-        geom_density(fill = "#4DBBD599") +
+        geom_density(fill = "#4DBBD5CC") +
         scale_x_continuous(breaks = seq(0, 10, 1), 
                            labels = seq(0, 10, 1), 
                            limits = c(0, 10)) +
@@ -1153,7 +1144,7 @@ anx_index_descriptives$descriptives
 # dummy (yes/no) back to its numeric form, with similar operation for gender.
 
 levels(data$q18_02_soc_media) <- list("1" = "yes", "0" = "no")
-levels(data$q01_gender) <- list("0" = "female", "1" = "male", "2" = "other")
+levels(data$q01_gender) <- list("0" = "male", "1" = "female", "2" = "other")
 data$q01_gender <- as.numeric(as.character(data$q01_gender))
 data$q18_02_soc_media <- as.numeric(as.character(data$q18_02_soc_media))
 
@@ -1177,7 +1168,7 @@ labels_H76 <- list(X = "Social Media",
 #### Conceptual diagram
 
 ```{r fig.height=7, fig.width=9}
-pmacroModel(76,
+pmacroModel(no = 76,
             labels = labels_H76,
             xmargin = 0,
             rady = 0.047,
@@ -1188,7 +1179,7 @@ pmacroModel(76,
 #### Statistical diagram with path names
 
 ```{r fig.height=7, fig.width=9}
-statisticalDiagram(76,
+statisticalDiagram(no = 76,
                    labels = labels_H76,
                    whatLabel = "name",
                    xmargin = 0.01,
@@ -1227,50 +1218,50 @@ total := direct + indirect
 prop.mediated := indirect / total
 
 # Component effects conditional on moderators (X = Social Media, M = Concern, Y = Depression, W = Age, Z = Gender)
-XonM.mean.male := a1 + a4*q02_age.c.mean + a5*1
-XonM.mean.female := a1 + a4*q02_age.c.mean + a5*0
+XonM.mean.male := a1 + a4*q02_age.c.mean + a5*0
+XonM.mean.female := a1 + a4*q02_age.c.mean + a5*1
 
-XonM.blw.male := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*1
-XonM.blw.female := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*0
+XonM.blw.male := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*0
+XonM.blw.female := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*1
 XonM.blw.avg := a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*q01_gender.mean
 
-XonM.abv.male := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*1
-XonM.abv.female := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*0
+XonM.abv.male := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*0
+XonM.abv.female := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*1
 XonM.abv.avg := a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*q01_gender.mean
 
-MonY.mean.male := b1 + b2*q02_age.c.mean + b3*1
-MonY.mean.female := b1 + b2*q02_age.c.mean + b3*0
+MonY.mean.male := b1 + b2*q02_age.c.mean + b3*0
+MonY.mean.female := b1 + b2*q02_age.c.mean + b3*1
 
-MonY.blw.male := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*1
-MonY.blw.female := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*0
+MonY.blw.male := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*0
+MonY.blw.female := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*1
 MonY.blw.avg := b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*q01_gender.mean
 
-MonY.abv.male := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*1
-MonY.abv.female := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*0
+MonY.abv.male := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*0
+MonY.abv.female := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*1
 MonY.abv.avg := b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*q01_gender.mean
 
 # Indirect effects conditional on moderators
-indirect.mean.male := (a1 + a4*q02_age.c.mean + a5*1)*(b1 + b2*q02_age.c.mean + b3*1)
-indirect.mean.female := (a1 + a4*q02_age.c.mean + a5*0)*(b1 + b2*q02_age.c.mean + b3*0)
+indirect.mean.male := (a1 + a4*q02_age.c.mean + a5*0)*(b1 + b2*q02_age.c.mean + b3*0)
+indirect.mean.female := (a1 + a4*q02_age.c.mean + a5*1)*(b1 + b2*q02_age.c.mean + b3*1)
 
-indirect.blw.male := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*1)
-indirect.blw.female := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*0)
+indirect.blw.male := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*0)
+indirect.blw.female := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*1)
 indirect.blw.avg := (a1 + a4*(q02_age.c.mean - sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean - sqrt(q02_age.c.var)) + b3*q01_gender.mean)
 
-indirect.abv.male := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*1)
-indirect.abv.female := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*0)
+indirect.abv.male := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*0)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*0)
+indirect.abv.female := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*1)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*1)
 indirect.abv.avg := (a1 + a4*(q02_age.c.mean + sqrt(q02_age.c.var)) + a5*q01_gender.mean)*(b1 + b2*(q02_age.c.mean + sqrt(q02_age.c.var)) + b3*q01_gender.mean)
 
 # Direct effects conditional on moderators
-direct.mean.male := c1 + c4*q02_age.c.mean + c5*1
-direct.mean.female := c1 + c4*q02_age.c.mean + c5*0
+direct.mean.male := c1 + c4*q02_age.c.mean + c5*0
+direct.mean.female := c1 + c4*q02_age.c.mean + c5*1
 
-direct.blw.male := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*1
-direct.blw.female := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*0
+direct.blw.male := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*0
+direct.blw.female := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*1
 direct.blw.avg := c1 + c4*(q02_age.c.mean - sqrt(q02_age.c.var)) + c5*q01_gender.mean
 
-direct.abv.male := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*1
-direct.abv.female := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*0
+direct.abv.male := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*0
+direct.abv.female := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*1
 direct.abv.avg := c1 + c4*(q02_age.c.mean + sqrt(q02_age.c.var)) + c5*q01_gender.mean
 
 # Total effects conditional on moderators
@@ -1319,7 +1310,7 @@ labels_stats_H76 <- list(X = "q18_02_soc_media",
 #### Diagram with unstandardized coefficients
 
 ```{r fig.height=7, fig.width=9}
-statisticalDiagram(76,
+statisticalDiagram(no = 76,
                    labels = labels_stats_H76,
                    fit = fit_mod,
                    whatLabel = "est",
@@ -1333,7 +1324,7 @@ statisticalDiagram(76,
 #### Diagram with standardized coefficients
 
 ```{r fig.height=7, fig.width=9}
-statisticalDiagram(76,
+statisticalDiagram(no = 76,
                    labels = labels_stats_H76,
                    fit = fit_mod,
                    whatLabel = "std",
@@ -1365,9 +1356,9 @@ p_adj <- p.adjust(estimates$pvalue, method = "holm")
 
 estimates <- cbind(estimates, p_adj)
 
-kableExtra::kbl(estimates) %>%
-kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
-                    kableExtra::row_spec(which(estimates$p_adj < 0.05), bold = TRUE)
+kbl(estimates) %>%
+kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
+                    row_spec(row = which(estimates$p_adj < 0.05), bold = TRUE)
 ```
 
 #### Table of defined parameters
@@ -1381,9 +1372,9 @@ p_adj <- p.adjust(parameters$pvalue, method = "holm")
 
 parameters <- cbind(parameters, p_adj)
 
-kableExtra::kbl(parameters) %>%
-kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
-                    kableExtra::row_spec(which(parameters$p_adj < 0.05), bold = TRUE)
+kbl(parameters) %>%
+kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
+                    row_spec(row = which(parameters$p_adj < 0.05), bold = TRUE)
 ```
 
 
@@ -1392,7 +1383,6 @@ kableExtra::kable_classic(full_width = FALSE, lightable_options = c("striped")) 
 We are conducting clustering with the K-Medoids algorithm to find distinct groups in our dataset. We are only using a subset of the dataset, which contains values that we used in the previous step within the path model - age, gender, social media, concern index and PHQ8. The reasoning is to supplement the insights from the path model, while also limiting ourselves only to the core variables, most of them showing relatively strong effects in the regression models.
 ```{r message=FALSE, warning=FALSE}
 
-set.seed(2021)
 
 data_scaled <- data %>% 
   select(q01_gender, q02_age, q18_02_soc_media, PHQ8, concern_index) %>% 
@@ -1417,6 +1407,8 @@ data_scaled <- data %>%
 # fviz_nbclust(resnumclust)
 
 # 3 as the suggested number of clusters
+set.seed(2021)
+
 pam3 <- pam(data_scaled, 3)
 
 # res3 <- hcut(data_scaled, k = 3, stand = TRUE, method = "median")
@@ -1439,24 +1431,23 @@ pam3 <- pam(data_scaled, 3)
 #### Visualisation of the clusters
 
 ```{r}
-cluster_pallete <- c("#E64B3599", "#4DBBD599", "#00A08799")
-
-fviz_cluster(pam3, data = data_scaled, ellipse.type = "norm", palette = cluster_pallete, ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
+fviz_cluster(pam3, data = data_scaled, ellipse.type = "norm", palette = c("#E64B3599", "#4DBBD599", "#00A08799"), ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
 ```
 
 #### Mean values of the distinct groups
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 data_scaled_df <- as_tibble(data_scaled)
 data_scaled_df$cluster <- as_factor(pam3$clustering)
-data_scaled_df_long <- data_scaled_df %>% gather(variable, value, q01_gender:concern_index, factor_key = TRUE)
+data_scaled_df_long <- data_scaled_df %>% pivot_longer(cols = q01_gender:concern_index, names_to = "variable", values_to = "value")
 
 ggplot(data_scaled_df_long, aes(x = variable, y = value, group = cluster, colour = cluster)) + 
        stat_summary(fun = mean, geom = "pointrange", size = 1, aes(shape = cluster)) +
        stat_summary(geom = "line") +
-       scale_color_npg() + 
+       scale_color_manual(values = c("#E64B35CC", "#4DBBD5CC", "#00A087CC")) + 
        ggtitle("Average value of selected variables per cluster") + 
-       theme_bw()
+       theme_bw() +
+       ylab("relative value")
 
 ```
 
