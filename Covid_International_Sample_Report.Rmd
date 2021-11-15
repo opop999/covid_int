@@ -64,19 +64,17 @@ h4.date {
 # The following packages might need to be installed onto your version 
 # of R prior to the running of the code below.
 
-library(MASS)
-library(lavaan)
-library(processR)
-library(corrplot)
-library(tidytext)
-library(tidyverse)
-library(haven)
-library(jmv)
-# library(fpc)
-# library(NbClust)
-library(cluster)
-library(kableExtra)
-library(factoextra)
+# Package names
+packages <- c("MASS", "lavaan", "processR", "corrplot", "tidytext", "tidyverse", "haven", "jmv", "Hmisc", "cluster", "kableExtra", "factoextra")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
 
 # We load the original Czech dataset (in SPSS format) from a local directory.
 data <- zap_labels(haven::read_sav(file = "INTERNATIONAL DATASET_12 Oct_final.sav"))
@@ -85,7 +83,7 @@ data <- zap_labels(haven::read_sav(file = "INTERNATIONAL DATASET_12 Oct_final.sa
 data_corr <- data
 
 # We also try to limit the decimals to three significant figures
-options(digits = 3)
+options(digits = 3, scipen = 999)
 
 ```
 
@@ -292,7 +290,7 @@ descriptives <- jmv::descriptives(
     median = FALSE,
     range = TRUE,
     sd = TRUE,
-    quart = TRUE)
+    pc = TRUE)
 
 descriptives$descriptives
 ```
@@ -1080,6 +1078,8 @@ concern_index <- apply(cbind(data$q30_concern_infection_covid,
 #Adding the vector as an column to the existing dataset.
 
 data <- cbind(data, concern_index)
+data_corr <- cbind(data_corr, concern_index)
+
 
 #To summarize the concern_index variable, we use the descriptives() 
 # function from the jmv package.
@@ -1089,9 +1089,33 @@ anx_index_descriptives <- jmv::descriptives(data = data,
                                             vars = "concern_index",
                                             sd = TRUE,
                                             median = FALSE,
-                                            quart = TRUE,
+                                            pc = TRUE,
                                             range = TRUE,
                                             box = TRUE)
+
+# Function to get the result from the correlation matrix into a data frame
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor = (cormat)[ut],
+    p = pmat[ut]
+    )
+}
+
+#Correlation matrix using Spearman coefficient 
+corr_mtx <- rcorr(as.matrix(data_corr), type = "spearman")
+ 
+# Selecting only significant correlates for PHQ8 (values with p>0.05 are excluded)
+flattenCorrMatrix(corr_mtx$r, corr_mtx$P) %>% filter(p <= 0.05,
+                                                     column %in% c("PHQ8_t")) %>% 
+                                              arrange(desc(abs(cor)))
+
+# Selecting only significant correlates for concern index (values with p>0.05 are excluded)
+flattenCorrMatrix(corr_mtx$r, corr_mtx$P) %>% filter(p <= 0.05,
+                                                     column %in% c("concern_index")) %>% 
+                                              arrange(desc(abs(cor)))
 ```
 
 ### Covid-19 concern index results {.tabset .tabset-pills}
@@ -1381,32 +1405,44 @@ kable_classic(full_width = FALSE, lightable_options = c("striped")) %>%
 # Clustering (K-Medoids)
 
 We are conducting clustering with the K-Medoids algorithm to find distinct groups in our dataset. We are only using a subset of the dataset, which contains values that we used in the previous step within the path model - age, gender, social media, concern index and PHQ8. The reasoning is to supplement the insights from the path model, while also limiting ourselves only to the core variables, most of them showing relatively strong effects in the regression models.
-```{r message=FALSE, warning=FALSE}
 
+```{r eval=FALSE, include=FALSE}
+
+library(fpc)
+library(NbClust)
+
+data_scaled <- data %>%
+ select(q01_gender, q02_age, q18_02_soc_media, PHQ8, concern_index) %>%
+ na.omit() %>%
+ scale()
+data_scaled <- na.omit(scale(data_corr))
+
+# Calculate the matrix of distance, we can choose from many methods
+
+m.distance <- get_dist(data_scaled, method = "kendall")
+fviz_dist(m.distance, gradient = list(low = "blue", mid = "white", high = "red"))
+fviz_nbclust(data_scaled, pam, method = "wss")
+fviz_nbclust(data_scaled, pam, method = "silhouette")
+fviz_nbclust(data_scaled, pam, method = "gap_stat")
+resnumclust <- NbClust(data_scaled, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
+
+resnumclust
+
+fviz_nbclust(resnumclust)
+
+# 3 seems to be the suggested number of clusters
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
 
 data_scaled <- data %>% 
   select(q01_gender, q02_age, q18_02_soc_media, PHQ8, concern_index) %>% 
   na.omit() %>% 
   scale()
 
-# data_scaled <- na.omit(scale(data_corr))
 
-# Calculate the matrix of distance, we can choose from many methods
-
-# m.distance <- get_dist(data_scaled, method = "kendall")
-# 
-# fviz_dist(m.distance, gradient = list(low = "blue", mid = "white", high = "red"))
-# 
-# fviz_nbclust(data_scaled, pam, method = "wss")
-# fviz_nbclust(data_scaled, pam, method = "silhouette")
-# fviz_nbclust(data_scaled, pam, method = "gap_stat")
-# 
-# resnumclust <- NbClust(data_scaled, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
-
-# resnumclust
-# fviz_nbclust(resnumclust)
-
-# 3 as the suggested number of clusters
 set.seed(2021)
 
 pam3 <- pam(data_scaled, 3)
@@ -1421,8 +1457,6 @@ pam3 <- pam(data_scaled, 3)
 #   mutate(cluster = as_factor(pam3$clustering)) %>%
 #   group_by(cluster) %>%
 #   summarise_all("mean")
-
-
 
 ```
 
