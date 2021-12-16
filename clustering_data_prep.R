@@ -80,7 +80,7 @@ matrix_subset <- readRDS("clustering_matrix.rds")
 
 # Take a sample
 set.seed(4167)
-matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 500, replace = FALSE),]
+matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 1000, replace = FALSE),]
 
 #identify all factor columns
 # x <- sapply(, is.factor)
@@ -99,7 +99,7 @@ fviz_nbclust(matrix_subset, pam, method = "wss")
 fviz_nbclust(matrix_subset, pam, method = "silhouette")
 fviz_nbclust(matrix_subset, pam, method = "gap_stat")
 
-resnumclust <- NbClust(matrix_subset, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
+resnumclust <- NbClust(matrix_subset, distance = "euclidean", min.nc = 2, method = "median", index = "all")
 
 saveRDS(resnumclust, "nr_of_clusters.rds")
 
