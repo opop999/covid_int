@@ -111,7 +111,7 @@ fviz_nbclust(resnumclust)
 
 set.seed(4167)
 
-pam3 <- pam(matrix_subset, 10)
+pam3 <- pam(matrix_subset, 2)
 
 fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", palette = c("#E64B3599", "#4DBBD599", "#00A08799"), ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
 
