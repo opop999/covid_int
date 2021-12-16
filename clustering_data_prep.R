@@ -1,5 +1,5 @@
 # Package names
-packages <- c("haven", "dplyr", "tidyr", "fpc", "NbClust", "factoextra", "cluster", "plotly")
+packages <- c("haven", "dplyr", "tidyr", "fpc", "NbClust", "factoextra", "cluster", "plotly", "clValid")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -80,7 +80,7 @@ matrix_subset <- readRDS("clustering_matrix.rds")
 
 # Take a sample
 set.seed(4167)
-matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 1000, replace = FALSE),]
+matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 2000, replace = FALSE),]
 
 #identify all factor columns
 # x <- sapply(, is.factor)
@@ -130,3 +130,12 @@ data_scaled_df_long <- data_scaled_df %>% pivot_longer(cols = q01_gender:PHQ8, n
   ggtitle("Average value of selected variables per cluster") + 
   theme_bw() +
   ylab("relative value")) %>% ggplotly()
+
+
+intern <- clValid(matrix_subset,
+                  nClust = 2:15, 
+                  clMethods = c("hierarchical", "kmeans", "pam"),
+                  validation = c("internal", "stability"))
+
+summary(intern) %>% kable() %>% kable_styling()
+
