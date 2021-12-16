@@ -1,5 +1,5 @@
 # Package names
-packages <- c("haven", "dplyr", "tidyr", "fpc", "NbClust", "factoextra")
+packages <- c("haven", "dplyr", "tidyr", "fpc", "NbClust", "factoextra", "cluster", "plotly")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -59,7 +59,7 @@ data <- data %>%
 
 data_subset <- data %>% 
   filter(Q3 %in% c(1,2), 
-         Country != 5) %>% 
+         Country != 5) %>%
   transmute(q01_gender = Q3, 
             q02_age = Q4, 
             q18_02_soc_media = replace_na(Q21_2, 0),
@@ -78,6 +78,10 @@ saveRDS(data_subset, "clustering_matrix.rds")
 
 matrix_subset <- readRDS("clustering_matrix.rds")
 
+# Take a sample
+set.seed(4167)
+matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 500, replace = FALSE),]
+
 #identify all factor columns
 # x <- sapply(, is.factor)
 # 
@@ -91,19 +95,38 @@ distance_matrix <- get_dist(matrix_subset, method = "euclidean")
 
 fviz_dist(distance_matrix, gradient = list(low = "blue", mid = "white", high = "red"))
 
-fviz_nbclust(distance_matrix, pam, method = "wss")
-fviz_nbclust(distance_matrix, pam, method = "silhouette")
-fviz_nbclust(distance_matrix, pam, method = "gap_stat")
+fviz_nbclust(matrix_subset, pam, method = "wss")
+fviz_nbclust(matrix_subset, pam, method = "silhouette")
+fviz_nbclust(matrix_subset, pam, method = "gap_stat")
 
 resnumclust <- NbClust(matrix_subset, distance = "euclidean", min.nc = 2, max.nc = 10, method = "median", index = "alllong")
 
-resnumclust
+saveRDS(resnumclust, "nr_of_clusters.rds")
 
 fviz_nbclust(resnumclust)
 
 # 3 seems to be the suggested number of clusters
 
+# Use PAM method
+
 set.seed(4167)
 
-pam3 <- pam(data_scaled, 3)
+pam3 <- pam(matrix_subset, 10)
 
+fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", palette = c("#E64B3599", "#4DBBD599", "#00A08799"), ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
+
+data_scaled_df <- as_tibble(matrix_subset)
+data_scaled_df$cluster <- as_factor(pam3$clustering)
+data_scaled_df_long <- data_scaled_df %>% pivot_longer(cols = q01_gender:PHQ8, names_to = "variable", values_to = "value")
+
+(ggplot(data_scaled_df_long, aes(x = variable, y = value, group = cluster, colour = cluster)) + 
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3
+               # aes(shape = cluster)
+               ) +
+  stat_summary(geom = "line", fun = mean) +
+  # scale_color_manual(values = c("#E64B35CC", "#4DBBD5CC", "#00A087CC")) + 
+  ggtitle("Average value of selected variables per cluster") + 
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
