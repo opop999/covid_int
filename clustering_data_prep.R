@@ -62,6 +62,11 @@ data_subset <- data %>%
          Country != 5) %>%
   transmute(q01_gender = Q3, 
             q02_age = Q4, 
+            q03_single = if_else(Q5 == 1, 1, 0),
+            q03_relationship = if_else(Q5 == 2, 1, 0),
+            q03_married = if_else(Q5 == 3, 1, 0),
+            q03_divorced = if_else(Q5 == 4, 1, 0),
+            q03_widowed = if_else(Q5 == 5, 1, 0),
             q18_02_soc_media = replace_na(Q21_2, 0),
             q20_public_info = Q23,
             q36_econ_worry = Q39,
@@ -74,13 +79,13 @@ data_subset <- data %>%
   na.omit() %>% 
   scale()
 
-saveRDS(data_subset, "clustering_matrix.rds")
+saveRDS(data_subset, "clustering_matrix_with_rel_stat.rds")
 
 matrix_subset <- readRDS("clustering_matrix.rds")
 
 # Take a sample
 set.seed(4167)
-matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 2000, replace = FALSE),]
+matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 500, replace = FALSE),]
 
 #identify all factor columns
 # x <- sapply(, is.factor)
@@ -101,7 +106,7 @@ fviz_nbclust(matrix_subset, pam, method = "gap_stat")
 
 resnumclust <- NbClust(matrix_subset, distance = "euclidean", min.nc = 2, method = "median", index = "all")
 
-saveRDS(resnumclust, "nr_of_clusters.rds")
+saveRDS(resnumclust, "nr_of_clusters_with_rel.rds")
 
 fviz_nbclust(resnumclust)
 
