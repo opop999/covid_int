@@ -57,46 +57,54 @@ data <- data %>%
                             `4` = 3),
          PHQ8 = Q49_1_rec + Q49_2_rec + Q49_3_rec + Q49_4_rec + Q49_5_rec + Q49_6_rec + Q49_7_rec + Q49_8_rec)
 
-data_subset <- data %>% 
-  filter(Q3 %in% c(1,2), 
-         Country != 5) %>%
-  transmute(q01_gender = Q3, 
-            q02_age = Q4, 
-            q03_single = if_else(Q5 == 1, 1, 0),
-            q03_relationship = if_else(Q5 == 2, 1, 0),
-            q03_married = if_else(Q5 == 3, 1, 0),
-            q03_divorced = if_else(Q5 == 4, 1, 0),
-            q03_widowed = if_else(Q5 == 5, 1, 0),
+data_subset <- data %>%
+  filter(Q3 %in% c(1,2),
+         Country != 5,
+         Q23 != 99) %>%
+  transmute(q01_gender = if_else(Q3 == 2, 1, 0),
+            q02_age = if_else(Q4 == 2, 1, 0),
+            # q03_relationship = Q5,
+            # q03_single = if_else(Q5 == 1, 1, 0),
+            # q03_relationship = if_else(Q5 == 2, 1, 0),
+            # q03_married = if_else(Q5 == 3, 1, 0),
+            # q03_divorced = if_else(Q5 == 4, 1, 0),
+            # q03_widowed = if_else(Q5 == 5, 1, 0),
             q18_02_soc_media = replace_na(Q21_2, 0),
-            q20_public_info = Q23,
+            q20_public_info = if_else(Q23 == 2, 1, 0),
             q36_econ_worry = Q39,
             q35_01_contact_close_family = Q38_1,
             q35_03_contact_friends = Q38_3,
-            q38_alcohol = Q42,
+            q38_alcohol = if_else(Q42 == 2, 1, 0),
             q47_self_reporting_health = Q50,
             q49_health_limitations = Q52,
-            PHQ8) %>% 
-  na.omit() %>% 
+            PHQ8) %>%
+  na.omit() %>%
   scale()
 
 saveRDS(data_subset, "clustering_matrix_with_rel_stat.rds")
 
-matrix_subset <- readRDS("clustering_matrix.rds")
+matrix_subset <- readRDS("clustering_matrix_with_rel_stat.rds")
 
 # Take a sample
 set.seed(4167)
-matrix_subset <- matrix_subset[sample(1:nrow(matrix_subset), 500, replace = FALSE),]
+matrix_subset <- data_subset[sample(1:nrow(data_subset), 500, replace = FALSE),]
 
 #identify all factor columns
 # x <- sapply(, is.factor)
-# 
+#
 # data_subset[ , x] <- sapply(data_subset[ , x], MARGIN = 2, as.numeric)
-# 
+#
 # data_scaled <- sapply(data_subset, as.integer) %>% scale()
 
 # Calculate the matrix of distance, we can choose from many methods
 
 distance_matrix <- get_dist(matrix_subset, method = "euclidean")
+distance_matrix <- daisy(matrix_subset,
+                         metric = "gower"
+                         # type = list(symm = c(1),
+                         #             asymm = c(3,4,8),
+                         #             ordratio = c(2,5,6,7,9,10,11))
+                         )
 
 fviz_dist(distance_matrix, gradient = list(low = "blue", mid = "white", high = "red"))
 
@@ -104,7 +112,8 @@ fviz_nbclust(matrix_subset, pam, method = "wss")
 fviz_nbclust(matrix_subset, pam, method = "silhouette")
 fviz_nbclust(matrix_subset, pam, method = "gap_stat")
 
-resnumclust <- NbClust(matrix_subset, distance = "euclidean", min.nc = 2, method = "median", index = "all")
+set.seed(4167)
+resnumclust <- NbClust(matrix_subset, min.nc = 2, method = "median", index = "all")
 
 saveRDS(resnumclust, "nr_of_clusters_with_rel.rds")
 
@@ -124,21 +133,21 @@ data_scaled_df <- as_tibble(matrix_subset)
 data_scaled_df$cluster <- as_factor(pam3$clustering)
 data_scaled_df_long <- data_scaled_df %>% pivot_longer(cols = q01_gender:PHQ8, names_to = "variable", values_to = "value")
 
-(ggplot(data_scaled_df_long, aes(x = variable, y = value, group = cluster, colour = cluster)) + 
+(ggplot(data_scaled_df_long, aes(x = variable, y = value, group = cluster, colour = cluster)) +
   stat_summary(geom = "point",
                fun = mean,
                size = 3
                # aes(shape = cluster)
                ) +
   stat_summary(geom = "line", fun = mean) +
-  # scale_color_manual(values = c("#E64B35CC", "#4DBBD5CC", "#00A087CC")) + 
-  ggtitle("Average value of selected variables per cluster") + 
+  # scale_color_manual(values = c("#E64B35CC", "#4DBBD5CC", "#00A087CC")) +
+  ggtitle("Average value of selected variables per cluster") +
   theme_bw() +
   ylab("relative value")) %>% ggplotly()
 
 
 intern <- clValid(matrix_subset,
-                  nClust = 2:15, 
+                  nClust = 2:15,
                   clMethods = c("hierarchical", "kmeans", "pam"),
                   validation = c("internal", "stability"))
 
