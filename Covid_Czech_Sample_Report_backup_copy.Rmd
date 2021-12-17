@@ -270,7 +270,7 @@ descriptives <- jmv::descriptives(
     median = FALSE,
     range = TRUE,
     sd = TRUE,
-    quart = TRUE)
+    pc = TRUE)
 ```
 
 ### PHQ8 results table {.tabset .tabset-pills}
@@ -884,7 +884,7 @@ anx_index_descriptives <- jmv::descriptives(
                                             vars = "concern_index",
                                             sd = TRUE,
                                             median = FALSE,
-                                            quart = TRUE,
+                                            pc = TRUE,
                                             range = TRUE,
                                             box = TRUE)
 ```
