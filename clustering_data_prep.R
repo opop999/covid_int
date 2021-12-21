@@ -62,7 +62,7 @@ data_subset <- data %>%
          Country != 5,
          Q23 != 99) %>%
   transmute(q01_gender = if_else(Q3 == 2, 1, 0),
-            q02_age = if_else(Q4 == 2, 1, 0),
+            q02_age = Q4,
             # q03_relationship = Q5,
             # q03_single = if_else(Q5 == 1, 1, 0),
             # q03_relationship = if_else(Q5 == 2, 1, 0),
@@ -81,7 +81,7 @@ data_subset <- data %>%
   na.omit() %>%
   scale()
 
-saveRDS(data_subset, "clustering_matrix_with_rel_stat.rds")
+saveRDS(data_subset, "clustering_matrix.rds")
 
 matrix_subset <- readRDS("clustering_matrix_with_rel_stat.rds")
 
@@ -124,10 +124,9 @@ fviz_nbclust(resnumclust)
 # Use PAM method
 
 set.seed(4167)
-
 pam3 <- pam(matrix_subset, 2)
 
-fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", palette = c("#E64B3599", "#4DBBD599", "#00A08799"), ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
+fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
 
 data_scaled_df <- as_tibble(matrix_subset)
 data_scaled_df$cluster <- as_factor(pam3$clustering)
