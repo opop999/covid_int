@@ -22,7 +22,7 @@ output:
 # of R prior to the running of the code below.
 
 # Package names
-packages <- c("corrplot", "tidyverse", "mice")
+packages <- c("corrplot", "dplyr", "mice", "car", "miceadds", "fastDummies")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -33,7 +33,7 @@ if (any(installed_packages == FALSE)) {
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
 
-imputed_df <- readRDS("imputed_dataset.rds")
+imputed_df <- readRDS("data/imputed_dataset.rds")
 
 
 ```
@@ -41,46 +41,136 @@ imputed_df <- readRDS("imputed_dataset.rds")
 ## Correlation plot
 
 ```{r}
+mi_cor_df <- complete(imputed_df, action = "long", include = TRUE) %>% 
+   dummy_cols(select_columns = c("q03_relationship_type", "q01_gender"), remove_selected_columns = TRUE) %>% 
+   mutate(across(everything(), ~ as.numeric(.))) %>% 
+   select(-c("q03_relationship_type_NA", "q01_gender_NA")) %>% 
+   as.mids()
 
-library(fastDummies)
-data_subset_clean <- na.omit(data_subset)
+mi_cor <- micombine.cor(mi_cor_df, 
+              method = "spearman", 
+              conf.level = 0.95)
 
-dummified_df <- dummy_cols(data_subset_clean, select_columns = c("q03_relationship_type", "q01_gender"), remove_selected_columns = TRUE, remove_first_dummy = TRUE)
-
-
-testik <- cor(sapply(dummified_df, as.numeric), 
-    method = "spearman", 
-    use = "complete.obs")
-
-corrplot(testik, 
+# Add significance matrix
+corrplot(attr(mi_cor,"r_matrix"), 
          method = "circle", 
              title = "Correlation Matrix - Spearman Coefficient", 
              type = "lower", 
-             p.mat = res1$p, 
-             sig.level = .05, 
+             # p.mat = res1$p, 
+             # sig.level = .05, 
              mar = c(0,0,1,0))
 
+
 ```
 
 
-# Stepwise regression model test
+# Stepwise regression model on multiply imputed dataset
 
 ```{r} 
-stepwise_BIC <- with(imputed_df, lm(PHQ8 ~ relevel(q01_gender, "female") + q02_age + q04_children + q36_econ_worry + q18_02_soc_media + q47_self_reporting_health + q49_health_limitations))
+# outcome <- "PHQ8"
+# predictors <- c("q01_gender", "q02_age", "q04_children", "q36_econ_worry", "q18_02_soc_media", "q47_self_reporting_health", "q49_health_limitations")
+# 
+# formula_bic <- as.formula(
+#   paste(outcome,
+#     paste(predictors, collapse = " + "),
+#     sep = " ~ "
+#   )
+# )
 
-stepwise_BIC_pooled <- pool(stepwise_BIC)
+# test_lm <- lm(formula_bic, mice::complete(imputed_df))
+# test <- imputed_df %>% 
+#    mice::complete("all") %>%
+#   lapply(lm, formula = PHQ8 ~ q01_gender + q02_age + q04_children + q36_econ_worry + 
+#     q18_02_soc_media + q47_self_reporting_health + q49_health_limitations) %>%
+#   lapply(Anova) 
+# car::durbinWatsonTest(stepwise_BIC_fit)
+# car::vif(test_lm)
+# car::Anova(test_lm, p.adjust.method = TRUE)
+# 
 
-stepwise_AIC <- with(imputed_df, lm(PHQ8 ~ relevel(q01_gender, "female") + q02_age + q04_children + q36_econ_worry + q18_02_soc_media + q47_self_reporting_health + q49_health_limitations + relevel(q03_relationship_type, "single") +
-            q20_public_info +
-            q34_02_face_mask +
-            q38_alcohol +
-            q40_smoking +
-            q48_chronic_illness))
+# test_jmv <- jmv::linReg(
+#     data = data_subset,
+#     dep = "PHQ8",
+#     covs = "q02_age",
+#     factors = vars("q01_gender"),
+#      blocks = list(
+#         list(
+#             "q01_gender",
+#             "q02_age")),
+#     refLevels = list(
+#         list(
+#             var = "q01_gender",
+#             ref = "female")),
+#     r2Adj = TRUE,
+#     aic = TRUE,
+#     bic = TRUE,
+#     rmse = TRUE,
+#     modelTest = TRUE,
+#     anova = TRUE,
+#     ci = TRUE,
+#     stdEst = TRUE,
+#     ciStdEst = TRUE,
+#     durbin = TRUE,
+#     collin = TRUE)
 
-stepwise_AIC_pooled <- pool(stepwise_AIC)
 
+
+# Testing model chosen based by stepwise algoritm on its BIC score
+stepwise_BIC_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
+  q02_age +
+  q04_children +
+  q36_econ_worry +
+  q18_02_soc_media +
+  q47_self_reporting_health +
+  q49_health_limitations)) %>%
+  pool()
+
+summary(stepwise_BIC_fit) %>% arrange(p.value)
+
+stepwise_BIC_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender + q02_age + q04_children + q36_econ_worry + 
+    q18_02_soc_media + q47_self_reporting_health + q49_health_limitations")
+
+stepwise_BIC_anova$r.squared
+
+stepwise_BIC_anova$anova.table %>% arrange(desc(`F value`))
+
+
+# Testing model chosen based by stepwise algoritm on its AIC score
+stepwise_AIC_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
+  q02_age +
+  q04_children +
+  q36_econ_worry +
+  q18_02_soc_media +
+  q47_self_reporting_health +
+  q49_health_limitations +
+  q03_relationship_type +
+  q20_public_info +
+  q34_02_face_mask +
+  q38_alcohol +
+  q40_smoking +
+  q48_chronic_illness)) %>%
+  pool()
+
+summary(stepwise_AIC_fit) %>% arrange(p.value)
+
+stepwise_AIC_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender + q02_age + q04_children + q36_econ_worry + 
+    q18_02_soc_media + q47_self_reporting_health + q49_health_limitations + q03_relationship_type +
+  q20_public_info +
+  q34_02_face_mask +
+  q38_alcohol +
+  q40_smoking +
+  q48_chronic_illness")
+
+stepwise_AIC_anova$r.squared
+
+stepwise_AIC_anova$anova.table %>% arrange(desc(`F value`))
 
 
 ```
 
+# Theoretically-devised regression model on multiply imputed dataset
+
+```{r}
+
+```
 

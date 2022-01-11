@@ -30,9 +30,7 @@ if (any(installed_packages == FALSE)) {
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
 
-# We load the original Czech dataset (in SPSS format) from a local directory.
-data <- zap_labels(haven::read_sav(file = "INTERNATIONAL DATASET_12 Oct_final.sav"))
-
+### MICLUST PACKAGE IMPUTED DFs
 
 data <- data %>%
   mutate(Q49_1_rec = recode(Q49_1,
@@ -138,8 +136,6 @@ resnumclust <- NbClust(matrix_subset, min.nc = 2, method = "median", index = "al
 saveRDS(resnumclust, "nr_of_clusters_with_rel.rds")
 
 fviz_nbclust(resnumclust)
-
-# 3 seems to be the suggested number of clusters
 
 # Use PAM method
 

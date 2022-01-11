@@ -1,0 +1,83 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "K-Medoids Clustering"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
+---
+
+
+```{r loading packages and dataset, message=FALSE, warning=FALSE}
+# Package names
+packages <- c("haven", "dplyr", "psych")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+# Load cleaned dataset
+
+reliability(items = data_subset[c("q30_concern_infection_covid",
+                                  "q31_concern_infection_friends",
+                                  "q33_01_concern_situation",
+                                  "q33_02_concern_low_control",
+                                  "q33_03_concern_survival_covid",
+                                  "q33_05_concern_infecting_others")])
+
+jmv::reliability(data_subset, omegaScale = TRUE, vars = c("q30_concern_infection_covid",
+                                  "q31_concern_infection_friends",
+                                  "q33_01_concern_situation",
+                                  "q33_02_concern_low_control",
+                                  "q33_03_concern_survival_covid",
+                                  "q33_05_concern_infecting_others"))
+
+jmv::cfa(
+    data = data_subset,
+    factors = list(
+        list(
+            label = "Concern",
+            vars = c("q30_concern_infection_covid",
+                     "q31_concern_infection_friends",
+                     "q33_01_concern_situation",
+                     "q33_02_concern_low_control",
+                     "q33_03_concern_survival_covid",
+                     "q33_05_concern_infecting_others"))),
+    resCov = list(),
+    ci = TRUE,
+    stdEst = TRUE,
+    factCovEst = FALSE,
+    fitMeasures = c("cfi", "tli", "rmsea", "srmr"),
+    corRes = TRUE)
+
+cfa_fit <- lavaan::cfa(model = "concern =~ q30_concern_infection_covid +
+                                           q31_concern_infection_friends +
+                                           q33_01_concern_situation +
+                                           q33_02_concern_low_control +
+                                           q33_03_concern_survival_covid +
+                                           q33_05_concern_infecting_others",
+                     data = data_subset)
+
+lavaan::summary(cfa_fit, fit.measures = TRUE,
+                rsquare = TRUE, 
+                ci = TRUE,
+                standardize = TRUE)
+
+```
+
+
+
