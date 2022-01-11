@@ -1,0 +1,242 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "Data Pre-processing"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
+---
+
+
+```{r loading packages and dataset, message=FALSE, warning=FALSE}
+# The following packages might need to be installed onto your version 
+# of R prior to the running of the code below.
+
+# Package names
+packages <- c("corrplot", "tidyverse", "haven", "mice")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+# We load the original Czech dataset (in SPSS format) from a local directory.
+data <- zap_labels(haven::read_sav(file = "data/international_dataset.sav"))
+
+# We also try to limit the decimals to three significant figures
+options(digits = 3, scipen = 999)
+
+```
+
+## Calculating PHQ8 dependent variable
+
+```{r}
+
+data <- data %>%
+  mutate(Q49_1_rec = recode(Q49_1,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_2_rec = recode(Q49_2,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_3_rec = recode(Q49_3,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_4_rec = recode(Q49_4,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_5_rec = recode(Q49_5,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_6_rec = recode(Q49_6,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_7_rec = recode(Q49_7,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         Q49_8_rec = recode(Q49_8,
+            `1` = 0,
+            `2` = 1,
+            `3` = 2,
+            `4` = 3),
+         PHQ8 = Q49_1_rec + Q49_2_rec + Q49_3_rec + Q49_4_rec + Q49_5_rec + Q49_6_rec + Q49_7_rec + Q49_8_rec)
+```
+
+## Seting factor levels to be interpretable in the analysis, preserving only variables of interest
+
+```{r}
+data_subset <- data %>% 
+  transmute(country = recode_factor(as_factor(Country),
+            `1` = "IT",
+            `2` = "FR",
+            `3` = "PL",
+            `4` = "UK",
+            `5` = "CZ",
+            `6` = "SW", .ordered = FALSE),
+            q01_gender = relevel(recode_factor(as_factor(Q3),
+            `1` = "male",
+            `2` = "female",
+            `3` = "other",
+            .ordered = FALSE), ref = "female"),
+            q02_age = Q4,
+            q02_age_group = recode_factor(as_factor(Q4_AGE_r),
+            `1` = "16-29 years",
+            `2` = "30-49 years",
+            `3` = "50-64 years",
+            `4` = "65+",
+            .ordered = TRUE),
+            q03_relationship_type = relevel(recode_factor(as_factor(Q5),
+            `1` = "single",
+            `2` = "relationship",
+            `3` = "married",
+            `4` = "divorced",
+            `5` = "widowed",
+            .ordered = FALSE), ref = "single"),
+            q04_children = recode_factor(as_factor(Q6),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q11_education = recode_factor(as_factor(Q13R),
+            `1` = "low",
+            `2` = "medium",
+            `3` = "high",
+            .ordered = TRUE),
+            q18_02_soc_media = recode_factor(as_factor(replace_na(Q21_2, 0)),
+            `0` = "no",
+            `1` = "yes"
+            ,.ordered = FALSE),
+            q20_public_info = recode_factor(as_factor(Q23),
+            `1` = "yes",
+            `2` = "no",
+            `99` = "do_not_know",
+            .ordered = FALSE),
+            q34_02_face_mask = recode_factor(as_factor(Q37_2),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q34_07_hand_washing = recode_factor(as_factor(Q37_7),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q35_01_contact_close_family = recode_factor(as_factor(Q38_1),
+            `1` = "less_often",
+            `2` = "as_before",
+            `3` = "more_often",
+            .ordered = TRUE),
+            q35_03_contact_friends = recode_factor(as_factor(Q38_3),
+            `1` = "less_often",
+            `2` = "as_before",
+            `3` = "more_often",
+            .ordered = TRUE),
+            q36_econ_worry = recode_factor(as_factor(Q39), # Make sure the direction is consistent!
+            `1` = "very_serious",
+            `2` = "serious",
+            `3` = "limited",
+            .ordered = TRUE),
+            q38_alcohol = recode_factor(as_factor(Q42),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q40_smoking = recode_factor(as_factor(Q44),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q42_sport = recode_factor(as_factor(Q46),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q47_self_reporting_health = recode_factor(as_factor(Q50),
+            `1` = "excellent",
+            `2` = "good",
+            `3` = "neutral",
+            `4` = "bad",
+            `5` = "very_bad",
+            .ordered = TRUE),
+            q48_chronic_illness = recode_factor(as_factor(Q51),
+            `1` = "yes",
+            `2` = "no",
+            .ordered = FALSE),
+            q49_health_limitations = recode_factor(as_factor(Q52),
+            `1` = "limits",
+            `2` = "partially_limits",
+            `3` = "no_limits",
+            .ordered = TRUE),
+            q30_concern_infection_covid = Q33,
+            q31_concern_infection_friends = Q34,
+            q33_01_concern_situation = Q36_1,
+            q33_02_concern_low_control = Q36_2,
+            q33_03_concern_survival_covid = Q36_3,
+            q33_04_concern_change_employment = Q36_4,
+            q33_05_concern_infecting_others = Q36_5,
+            PHQ8 = PHQ8) 
+
+```
+
+## Filtering out the Czech sample for analyses
+
+```{r}
+data_subset <- data_subset %>%
+        filter(!country %in% c("CZ")) %>% 
+        select(-c("country", "q02_age_group"))
+
+# Change Do Not Know to NA's
+levels(data_subset$q20_public_info)[levels(data_subset$q20_public_info) == "do_not_know"] <- NA
+
+```
+
+## Analysis of the missing data
+
+```{r}
+# What proportion missing data?
+summary(data_subset)
+
+md.pattern(data_subset)
+```
+
+## Multiple imputation using the MICE package
+
+How many imputations? Rule of thumb (https://onlinelibrary.wiley.com/doi/10.1002/sim.4067), at least the number of missing in percent.
+Recommendation of 10 iterations per imputation (https://academic.oup.com/aje/article/169/9/1133/125871)
+```{r}
+data_subset_imputed <- mice(data_subset,
+                            m = 5,
+                            maxit = 10,
+                            defaultMethod = c("pmm", "logreg", "polyreg", "polr"),
+                            seed = 4167)
+```
+
+
+## Saving the imputed dataset
+```{r}
+saveRDS(data_subset_imputed, "imputed_dataset.rds")
+
+```
+
+

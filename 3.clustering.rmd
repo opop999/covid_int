@@ -1,3 +1,23 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "K-Medoids Clustering"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
+---
+
+
+```{r loading packages and dataset, message=FALSE, warning=FALSE}
 # Package names
 packages <- c("haven", "dplyr", "tidyr", "fpc", "NbClust", "factoextra", "cluster", "plotly", "clValid")
 
@@ -151,4 +171,8 @@ intern <- clValid(matrix_subset,
                   validation = c("internal", "stability"))
 
 summary(intern) %>% kable() %>% kable_styling()
+
+```
+
+
 

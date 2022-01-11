@@ -1,0 +1,86 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "Multiple Regression"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
+---
+
+
+```{r loading packages and dataset, message=FALSE, warning=FALSE}
+# The following packages might need to be installed onto your version 
+# of R prior to the running of the code below.
+
+# Package names
+packages <- c("corrplot", "tidyverse", "mice")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+imputed_df <- readRDS("imputed_dataset.rds")
+
+
+```
+
+## Correlation plot
+
+```{r}
+
+library(fastDummies)
+data_subset_clean <- na.omit(data_subset)
+
+dummified_df <- dummy_cols(data_subset_clean, select_columns = c("q03_relationship_type", "q01_gender"), remove_selected_columns = TRUE, remove_first_dummy = TRUE)
+
+
+testik <- cor(sapply(dummified_df, as.numeric), 
+    method = "spearman", 
+    use = "complete.obs")
+
+corrplot(testik, 
+         method = "circle", 
+             title = "Correlation Matrix - Spearman Coefficient", 
+             type = "lower", 
+             p.mat = res1$p, 
+             sig.level = .05, 
+             mar = c(0,0,1,0))
+
+```
+
+
+# Stepwise regression model test
+
+```{r} 
+stepwise_BIC <- with(imputed_df, lm(PHQ8 ~ relevel(q01_gender, "female") + q02_age + q04_children + q36_econ_worry + q18_02_soc_media + q47_self_reporting_health + q49_health_limitations))
+
+stepwise_BIC_pooled <- pool(stepwise_BIC)
+
+stepwise_AIC <- with(imputed_df, lm(PHQ8 ~ relevel(q01_gender, "female") + q02_age + q04_children + q36_econ_worry + q18_02_soc_media + q47_self_reporting_health + q49_health_limitations + relevel(q03_relationship_type, "single") +
+            q20_public_info +
+            q34_02_face_mask +
+            q38_alcohol +
+            q40_smoking +
+            q48_chronic_illness))
+
+stepwise_AIC_pooled <- pool(stepwise_AIC)
+
+
+
+```
+
+

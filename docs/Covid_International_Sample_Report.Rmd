@@ -132,9 +132,12 @@ data <- data %>%
             `3` = 2,
             `4` = 3),
          PHQ8 = Q49_1_rec + Q49_2_rec + Q49_3_rec + Q49_4_rec + Q49_5_rec + Q49_6_rec + Q49_7_rec + Q49_8_rec)
+```
 
+
+```{r}
 # Renaming variables to identical ones as before
-data_full <- data %>% 
+data_subset <- data %>% 
   transmute(country = recode_factor(as_factor(Country),
             `1` = "IT",
             `2` = "FR",
@@ -219,13 +222,32 @@ data_full <- data %>%
             q33_03_concern_survival_covid = Q36_3,
             q33_04_concern_change_employment = Q36_4,
             q33_05_concern_infecting_others = Q36_5,
-            PHQ8 = PHQ8) 
+            PHQ8 = PHQ8)
+```
 
+
+```{r}
 # Filtering out Czech sample for analyses
 data <- data_full %>%
         filter(country != "CZ")
 
 ```
+
+```{r}
+data["info_missing"] <- if_else(data$q20_public_info %in% c(NA, "yes", "no"), 0, 1)
+
+
+# Is q20_public_info MAR or MNAR?
+mcar_test(data[,c("q01_gender", "q02_age", "q03_relationship_type", "q04_children", "q18_02_soc_media")])
+
+summary(data)
+
+```
+
+
+
+
+
 
 ## Descriptive statistics
 
@@ -708,9 +730,9 @@ YJ <- car::powerTransform(lm(PHQ8 ~ q01_gender
                              + q02_age
                              + q03_relationship_type
                              + q04_children 
-                             + q11_education
+                             # + q11_education
                              + q18_02_soc_media
-                             + q20_public_info
+                             # + q20_public_info
                              + q34_02_face_mask
                              + q34_07_hand_washing 
                              + q35_01_contact_close_family
@@ -725,11 +747,8 @@ YJ <- car::powerTransform(lm(PHQ8 ~ q01_gender
                              , family = "yjPower")
 (lambdaYJ <- YJ$lambda)
 
-# Yeo-Johnson transformation of the dependent variable
-PHQ8_t <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
-
-# Adding the newly created variable to the dataset
-data <- cbind(data, PHQ8_t)
+# Yeo-Johnson transformation of the dependent variable, adding it to the dataset
+data["PHQ8_t"] <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
 ```
 
 ## Overview of correlations between individual predictors and outcome
@@ -746,7 +765,7 @@ data_corr <- data_corr %>%
                         q02_age = Q4,
                         q03_relationship_type = Q5,
                         q04_children = Q6,
-                        q11_education = Q13R,
+                        # q11_education = Q13R,
                         q18_02_soc_media = replace_na(Q21_2, 0),
                         q20_public_info = Q23,
                         q34_02_face_mask = Q37_2,
@@ -763,9 +782,14 @@ data_corr <- data_corr %>%
               filter(country != 5) %>% 
               select(-country)
 
-data_corr <- cbind(data_corr, PHQ8_t)
+data_corr <- data_corr %>% mutate(info_missing = if_else(q20_public_info %in% c(NA, 1, 2), 0, 1))
+
+data_corr["PHQ8_t"] <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
 
 res1 <- cor.mtest(data_corr, conf.level = .95)
+
+# Filter column by name
+data_corr[, !grepl("q20_public_info", colnames(data_corr))]
 
 #Correlation matrix using Spearman coefficient (values with p > 0.05 are crossed)
 corrplot(cor(data_corr, 
@@ -790,7 +814,7 @@ linreg_theory <- jmv::linReg(
                    "q04_children",
                    # "q11_education",
                    "q18_02_soc_media",
-                   "q20_public_info",
+                   # "q20_public_info",
                    "q34_02_face_mask",
                    "q34_07_hand_washing",
                    "q35_01_contact_close_family",
@@ -811,7 +835,7 @@ linreg_theory <- jmv::linReg(
             # "q11_education"),
         list(
             "q18_02_soc_media",
-            "q20_public_info",
+            # "q20_public_info",
             "q34_02_face_mask",
             "q34_07_hand_washing",
             "q36_econ_worry"),
@@ -832,9 +856,9 @@ linreg_theory <- jmv::linReg(
         list(
             var = "q04_children",
             ref = "no"),
-         list(
-            var = "q20_public_info",
-            ref = "no"),
+         # list(
+         #    var = "q20_public_info",
+         #    ref = "no"),
         list(
             var = "q34_02_face_mask",
             ref = "no"),
