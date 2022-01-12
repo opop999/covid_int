@@ -35,6 +35,8 @@ invisible(lapply(packages, library, character.only = TRUE))
 
 imputed_df <- readRDS("data/imputed_dataset.rds")
 
+# We also try to limit the decimals to three significant figures
+options(digits = 3, scipen = 999)
 
 ```
 
@@ -113,8 +115,14 @@ corrplot(attr(mi_cor,"r_matrix"),
 #     durbin = TRUE,
 #     collin = TRUE)
 
+# Remove factor ordering for better interpretation within regression coefficients
+imputed_df <- complete(imputed_df, action = "long", include = TRUE) %>% 
+   mutate(across(where(is.ordered), ~ factor(., ordered = FALSE))) %>% 
+   as.mids()
+```
 
 
+```{r} 
 # Testing model chosen based by stepwise algoritm on its BIC score
 stepwise_BIC_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
   q02_age +
@@ -122,13 +130,18 @@ stepwise_BIC_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
   q36_econ_worry +
   q18_02_soc_media +
   q47_self_reporting_health +
-  q49_health_limitations)) %>%
+  q49_health_limitations + 0)) %>%
   pool()
 
 summary(stepwise_BIC_fit) %>% arrange(p.value)
 
-stepwise_BIC_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender + q02_age + q04_children + q36_econ_worry + 
-    q18_02_soc_media + q47_self_reporting_health + q49_health_limitations")
+stepwise_BIC_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender +
+  q02_age +
+  q04_children +
+  q36_econ_worry +
+  q18_02_soc_media +
+  q47_self_reporting_health +
+  q49_health_limitations")
 
 stepwise_BIC_anova$r.squared
 
@@ -148,13 +161,19 @@ stepwise_AIC_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
   q34_02_face_mask +
   q38_alcohol +
   q40_smoking +
-  q48_chronic_illness)) %>%
+  q48_chronic_illness + 0)) %>%
   pool()
 
 summary(stepwise_AIC_fit) %>% arrange(p.value)
 
-stepwise_AIC_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender + q02_age + q04_children + q36_econ_worry + 
-    q18_02_soc_media + q47_self_reporting_health + q49_health_limitations + q03_relationship_type +
+stepwise_AIC_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender +
+  q02_age +
+  q04_children +
+  q36_econ_worry +
+  q18_02_soc_media +
+  q47_self_reporting_health +
+  q49_health_limitations +
+  q03_relationship_type +
   q20_public_info +
   q34_02_face_mask +
   q38_alcohol +
@@ -165,12 +184,141 @@ stepwise_AIC_anova$r.squared
 
 stepwise_AIC_anova$anova.table %>% arrange(desc(`F value`))
 
-
 ```
 
 # Theoretically-devised regression model on multiply imputed dataset
 
 ```{r}
+th_1_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education + 0)) %>%
+  pool()
 
+th_2_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education +
+  q18_02_soc_media +
+  q20_public_info +
+  q34_02_face_mask +
+  q34_07_hand_washing +
+  q36_econ_worry + 0)) %>%
+  pool()
+
+th_3_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education +
+  q18_02_soc_media +
+  q20_public_info +
+  q34_02_face_mask +
+  q34_07_hand_washing +
+  q36_econ_worry +
+  q40_smoking +
+  q42_sport +
+  q38_alcohol +
+  q35_01_contact_close_family +
+  q35_03_contact_friends + 0)) %>%
+  pool()
+
+
+th_4_fit <- with(imputed_df, lm(PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education +
+  q18_02_soc_media +
+  q20_public_info +
+  q34_02_face_mask +
+  q34_07_hand_washing +
+  q36_econ_worry +
+  q40_smoking +
+  q42_sport +
+  q38_alcohol +
+  q35_01_contact_close_family +
+  q35_03_contact_friends + 
+  q47_self_reporting_health +
+  q48_chronic_illness +
+  q49_health_limitations + 0)) %>%
+  pool()
+
+th_1_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education")
+
+th_2_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education +
+  q18_02_soc_media +
+  q20_public_info +
+  q34_02_face_mask +
+  q34_07_hand_washing +
+  q36_econ_worry")
+
+th_3_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education +
+  q18_02_soc_media +
+  q20_public_info +
+  q34_02_face_mask +
+  q34_07_hand_washing +
+  q36_econ_worry +
+  q40_smoking +
+  q42_sport +
+  q38_alcohol +
+  q35_01_contact_close_family +
+  q35_03_contact_friends")
+
+th_4_anova <- mi.anova(imputed_df, "PHQ8 ~ q01_gender +
+  q02_age +
+  q03_relationship_type +  
+  q04_children +
+  q11_education +
+  q18_02_soc_media +
+  q20_public_info +
+  q34_02_face_mask +
+  q34_07_hand_washing +
+  q36_econ_worry +
+  q40_smoking +
+  q42_sport +
+  q38_alcohol +
+  q35_01_contact_close_family +
+  q35_03_contact_friends + 
+  q47_self_reporting_health +
+  q48_chronic_illness +
+  q49_health_limitations")
+
+summary(th_1_fit) %>% arrange(p.value)
+summary(th_2_fit) %>% arrange(p.value)
+summary(th_3_fit) %>% arrange(p.value)
+summary(th_4_fit) %>% arrange(p.value)
+
+
+th_1_anova$r.squared
+th_2_anova$r.squared
+th_3_anova$r.squared
+th_4_anova$r.squared
+
+th_1_anova$anova.table %>% arrange(desc(`F value`))
+th_2_anova$anova.table %>% arrange(desc(`F value`))
+th_3_anova$anova.table %>% arrange(desc(`F value`))
+th_4_anova$anova.table %>% arrange(desc(`F value`))
+
+```
+
+```{r}
+ggplot(complete(imputed_df), aes(q02_age, PHQ8, color = q11_education)) + geom_point(position = "jitter", alpha = 0.2) + geom_smooth()
+
+# + geom_parallel_slopes(se = TRUE)
 ```
 

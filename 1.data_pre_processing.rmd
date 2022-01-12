@@ -37,7 +37,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 data <- zap_labels(haven::read_sav(file = "data/international_dataset.sav"))
 
 # We also try to limit the decimals to three significant figures
-options(digits = 4, scipen = 999)
+options(digits = 3, scipen = 999)
 
 ```
 
