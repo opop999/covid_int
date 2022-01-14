@@ -21,7 +21,7 @@ output:
 # of R prior to the running of the code below.
 
 # Package names
-packages <- c("dplyr", "haven", "mice", "tidyr")
+packages <- c("dplyr", "haven", "mice", "tidyr", "fastDummies")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -60,11 +60,11 @@ data_subset <- data %>%
             `4` = "UK",
             `5` = "CZ",
             `6` = "SW", .ordered = FALSE),
-            q01_gender = relevel(recode_factor(as_factor(Q3),
+            q01_gender = recode_factor(as_factor(Q3),
             `1` = "male",
             `2` = "female",
             `3` = "other",
-            .ordered = FALSE), ref = "female"),
+            .ordered = FALSE),
             q02_age = Q4,
             q02_age_group = recode_factor(as_factor(Q4_AGE_r),
             `1` = "16-29 years",
@@ -72,13 +72,13 @@ data_subset <- data %>%
             `3` = "50-64 years",
             `4` = "65+",
             .ordered = TRUE),
-            q03_relationship_type = relevel(recode_factor(as_factor(Q5),
+            q03_relationship_type = recode_factor(as_factor(Q5),
             `1` = "single",
             `2` = "relationship",
             `3` = "married",
             `4` = "divorced",
             `5` = "widowed",
-            .ordered = FALSE), ref = "single"),
+            .ordered = FALSE),
             q04_children = recode_factor(as_factor(Q6),
             `1` = "yes",
             `2` = "no",
@@ -194,18 +194,50 @@ md.pattern(data_subset)
 How many imputations? Rule of thumb (https://onlinelibrary.wiley.com/doi/10.1002/sim.4067), at least the number of missing in percent.
 Recommendation of 10 iterations per imputation (https://academic.oup.com/aje/article/169/9/1133/125871)
 ```{r}
-data_subset_imputed <- mice(data_subset,
-                            m = 5,
-                            maxit = 10,
-                            defaultMethod = c("pmm", "logreg", "polyreg", "polr"),
-                            seed = 4167,
-                            print = FALSE)
+imputed_df <- mice(data_subset,
+  m = 5,
+  maxit = 10,
+  defaultMethod = c("pmm", "logreg", "polyreg", "polr"),
+  seed = 4167,
+  print = FALSE
+)
+```
+
+```{r}
+# Remove factor ordering for better interpretation within regression coefficients, setting contrasts
+imputed_df <- complete(imputed_df, action = "long", include = TRUE) %>% 
+   mutate(across(where(is.ordered), ~ factor(., ordered = FALSE)),
+          q01_gender = relevel(q01_gender, ref = "male"),
+          q03_relationship_type = relevel(q03_relationship_type, ref = "married"),
+          q04_children = relevel(q04_children, ref = "yes"),
+          q11_education = relevel(q11_education, ref = "high"),
+          q18_02_soc_media = relevel(q18_02_soc_media, ref = "no"),
+          q20_public_info = relevel(q20_public_info, ref = "yes"),
+          q34_02_face_mask = relevel(q34_02_face_mask, ref = "yes"),
+          q34_07_hand_washing = relevel(q34_07_hand_washing, ref = "yes"),
+          q35_01_contact_close_family = relevel(q35_01_contact_close_family, ref = "more_often"),
+          q35_03_contact_friends = relevel(q35_03_contact_friends, ref = "more_often"),
+          q36_econ_worry = relevel(q36_econ_worry, ref = "limited"),
+          q38_alcohol = relevel(q38_alcohol, ref = "no"),
+          q40_smoking = relevel(q40_smoking, ref = "no"),
+          q42_sport = relevel(q42_sport, ref = "yes"),
+          q47_self_reporting_health = relevel(q47_self_reporting_health, ref = "excellent"),
+          q48_chronic_illness = relevel(q48_chronic_illness, ref = "no"),
+          q49_health_limitations = relevel(q49_health_limitations, ref = "no_limits")) %>%
+   as.mids()
+
+mi_corr_df <- complete(imputed_df, action = "long", include = TRUE) %>% 
+   dummy_cols(select_columns = c("q03_relationship_type", "q01_gender"), remove_selected_columns = TRUE) %>% 
+   mutate(across(everything(), ~ as.numeric(.))) %>% 
+   select(-c("q03_relationship_type_NA", "q01_gender_NA")) %>% 
+   as.mids()
 ```
 
 
 ## Saving the imputed dataset
 ```{r}
-saveRDS(data_subset_imputed, "imputed_dataset.rds")
+saveRDS(imputed_df, "data/imputed_dataset.rds")
+saveRDS(mi_corr_df, "data/imputed_dataset_corr.rds")
 
 ```
 
