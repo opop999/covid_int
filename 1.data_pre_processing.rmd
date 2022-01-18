@@ -205,7 +205,7 @@ imputed_df <- mice(data_subset,
 
 ```{r}
 # Remove factor ordering for better interpretation within regression coefficients, setting contrasts
-imputed_df <- complete(imputed_df, action = "long", include = TRUE) %>% 
+imputed_df_reg <- complete(imputed_df, action = "long", include = TRUE) %>% 
    mutate(across(where(is.ordered), ~ factor(., ordered = FALSE)),
           q01_gender = relevel(q01_gender, ref = "male"),
           q03_relationship_type = relevel(q03_relationship_type, ref = "married"),
@@ -226,18 +226,41 @@ imputed_df <- complete(imputed_df, action = "long", include = TRUE) %>%
           q49_health_limitations = relevel(q49_health_limitations, ref = "no_limits")) %>%
    as.mids()
 
-mi_corr_df <- complete(imputed_df, action = "long", include = TRUE) %>% 
+imputed_df_cor <- complete(imputed_df, action = "long", include = TRUE) %>% 
    dummy_cols(select_columns = c("q03_relationship_type", "q01_gender"), remove_selected_columns = TRUE) %>% 
    mutate(across(everything(), ~ as.numeric(.))) %>% 
    select(-c("q03_relationship_type_NA", "q01_gender_NA")) %>% 
    as.mids()
+
+imputed_df_clust <- complete(imputed_df, action = "long", include = TRUE) %>% 
+   mutate(q01_gender_female = factor(if_else(q01_gender == "female", 1, 0), levels = c(1, 0), labels = c("yes", "no")),
+          q03_relationship_or_married = factor(if_else(q03_relationship_type %in% c("married", "relationship"), 1, 0), levels = c(1, 0), labels = c("yes", "no"))) %>% 
+   transmute(.imp,
+             .id,
+             PHQ8,
+             q01_gender_female,
+             q02_age,
+             q03_relationship_or_married,
+             q04_children,
+             q11_education,
+             q18_02_soc_media,
+             q20_public_info,
+             q36_econ_worry,	
+             q40_smoking,
+             q42_sport,
+             q47_self_reporting_health,
+             q49_health_limitations) %>% 
+  as.mids()
+
 ```
 
 
 ## Saving the imputed dataset
 ```{r}
 saveRDS(imputed_df, "data/imputed_dataset.rds")
-saveRDS(mi_corr_df, "data/imputed_dataset_corr.rds")
+saveRDS(imputed_df_reg, "data/imputed_dataset_reg.rds")
+saveRDS(imputed_df_cor, "data/imputed_dataset_corr.rds")
+saveRDS(imputed_df_clust, "data/imputed_dataset_clust.rds")
 
 ```
 
