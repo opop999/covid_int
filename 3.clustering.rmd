@@ -45,7 +45,7 @@ for (o in seq_len(imputed_df$m)) {
   } else {
     nr_clust <- list()
 }
-  matrix_subset <- head(complete(imputed_df, o), 100)
+  matrix_subset <- complete(imputed_df, o)
   
   distance_matrix <- daisy(matrix_subset, metric = "gower")
   
