@@ -252,6 +252,50 @@ imputed_df_clust <- complete(imputed_df, action = "long", include = TRUE) %>%
              q49_health_limitations) %>% 
   as.mids()
 
+# We reverse code some of the categorical variables for more intuitive interpretation in the cluster analysis
+
+imputed_df_clust_no_fct <- complete(imputed_df_clust, action = "long", include = TRUE) %>% 
+      mutate(q01_gender_female = as.numeric(as.character(recode(q01_gender_female,
+             "yes" = "1",
+             "no" = "0"))),
+             q03_relationship_or_married = as.numeric(as.character(recode(q03_relationship_or_married,
+             "yes" = "1",
+             "no" = "0"))),
+             q04_children = as.numeric(as.character(recode(q04_children,
+             "yes" = "1",
+             "no" = "0"))),             
+             q11_education = as.numeric(as.character(recode(q11_education,
+             "low" = "1",
+             "medium" = "2",
+             "high" = "3"))),                  
+             q18_02_soc_media = as.numeric(as.character(recode(q18_02_soc_media,
+             "yes" = "1",
+             "no" = "0"))),  
+             q20_public_info = as.numeric(as.character(recode(q20_public_info,
+             "yes" = "1",
+             "no" = "0"))), 
+             q36_econ_worry = as.numeric(as.character(recode(q36_econ_worry,
+             "very_serious" = "3",
+             "serious" = "2",
+             "limited" = "1"))),
+             q40_smoking = as.numeric(as.character(recode(q40_smoking,
+             "yes" = "1",
+             "no" = "0"))),
+             q42_sport = as.numeric(as.character(recode(q42_sport,
+             "yes" = "1",
+             "no" = "0"))),
+             q47_self_reporting_health = as.numeric(as.character(recode(q47_self_reporting_health,
+             "excellent" = "5",
+             "good" = "4",
+             "neutral" = "3",
+             "bad" = "2",
+             "very_bad" = "1"))),
+             q49_health_limitations = as.numeric(as.character(recode(q49_health_limitations,
+             "limits" = "3",
+             "partially_limits" = "2",
+             "no_limits" = "1")))) %>% 
+  as.mids()
+
 ```
 
 
@@ -261,6 +305,8 @@ saveRDS(imputed_df, "data/imputed_dataset.rds")
 saveRDS(imputed_df_reg, "data/imputed_dataset_reg.rds")
 saveRDS(imputed_df_cor, "data/imputed_dataset_corr.rds")
 saveRDS(imputed_df_clust, "data/imputed_dataset_clust.rds")
+saveRDS(imputed_df_clust_no_fct, "data/imputed_dataset_clust_no_fct.rds")
+
 
 ```
 

@@ -19,7 +19,7 @@ output:
 
 ```{r loading packages and dataset, message=FALSE, warning=FALSE}
 # Package names
-packages <- c("dplyr", "tidyr", "fpc", "NbClust", "factoextra", "cluster", "clValid", "mice")
+packages <- c("dplyr", "tidyr", "forcats", "fpc", "NbClust", "factoextra", "cluster", "clValid", "mice", "miclust", "plotly")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -31,11 +31,14 @@ if (any(installed_packages == FALSE)) {
 invisible(lapply(packages, library, character.only = TRUE))
 
 imputed_df <- readRDS("data/imputed_dataset_clust.rds")
+imputed_df_no_fct <- readRDS("data/imputed_dataset_clust_no_fct.rds")
 
 ```
 
 ```{r}
-
+# Determine optimal number of cluster using 5 algoritms across 5 imputed datasets
+# These algorithms are compatible with Gower's distance method, which is preferred
+# for mixed data
 indexes <- c("frey", "mcclain", "cindex", "silhouette", "dunn")
 
 for (o in seq_len(imputed_df$m)) {
@@ -43,7 +46,7 @@ for (o in seq_len(imputed_df$m)) {
   if (file.exists("data/nr_clust.rds")) {
     nr_clust <- readRDS("data/nr_clust.rds") 
   } else {
-    nr_clust <- list()
+    nr_clust <- vector(mode = "list", length = imputed_df$m)
 }
   matrix_subset <- complete(imputed_df, o)
   
@@ -58,55 +61,56 @@ for (o in seq_len(imputed_df$m)) {
   saveRDS(nr_clust, "data/nr_clust.rds")
 }
 
+# Two clusters as a recommended number seems to win with every imputed dataset
+optimal_nr_of_clusters <- readRDS("data/nr_clust.rds") %>% bind_rows()
+```
+
+```{r}
+list_imp_dfs <- complete(imputed_df, action = "all", include = "FALSE")
+list_imp_dfs_no_fct <- complete(imputed_df_no_fct, action = "all", include = "FALSE")
+list_cl_dfs <- vector(mode = "list", length = imputed_df$m)
+nr_clust <- 2
+
+for (i in seq_len(imputed_df$m)) {
+  
+  # Calculate the matrix of distance
+  distance_matrix_gower <- daisy(list_imp_dfs[[i]], metric = "gower")
+  # Cluster with PAM algorithm
+  set.seed(4167)
+  pam_clust <- pam(distance_matrix_gower, nr_clust, diss = TRUE)
+
+list_clustered_dfs[[i]] <- list_imp_dfs_no_fct[[i]] %>%
+  scale() %>%
+  as_tibble() %>%
+  bind_cols(cluster = pam_clust$clustering) %>% 
+  pivot_longer(cols = !cluster, names_to = "variable", values_to = "value")
+
+}
+
+saveRDS(list_cl_dfs, "data/list_clustered_dfs.rds")
+
+# Function to determine mode of a vector
+getmode <- function(v) {
+ uniqv <- unique(v)
+ uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+pooled_df <- tibble(variable = list_cl_dfs[[1]][[2]],
+             value = rowMeans(cbind(list_cl_dfs[[1]][[3]], list_cl_dfs[[2]][[3]], list_cl_dfs[[3]][[3]], list_cl_dfs[[4]][[3]], list_cl_dfs[[5]][[3]])),
+             cluster = tibble(df_1 = list_cl_dfs[[1]][[1]], df_2 = list_cl_dfs[[2]][[1]], df_3 = list_cl_dfs[[3]][[1]], df_4 = list_cl_dfs[[4]][[1]], df_5 = list_cl_dfs[[5]][[1]]) %>%
+             rowwise() %>% 
+             transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
+             pull(mode_of_all)
+)
+
+
 ```
 
 
+```{r, message=FALSE, warning=FALSE}
+# Cluster visualization
 
-```{r loading packages and dataset, message=FALSE, warning=FALSE}
-### MICLUST PACKAGE IMPUTED DFs
-
-
-# Take a sample
-set.seed(4167)
-matrix_subset <- data_subset[sample(1:nrow(data_subset), 500, replace = FALSE),]
-
-#identify all factor columns
-# x <- sapply(, is.factor)
-#
-# data_subset[ , x] <- sapply(data_subset[ , x], MARGIN = 2, as.numeric)
-#
-# data_scaled <- sapply(data_subset, as.integer) %>% scale()
-
-# Calculate the matrix of distance, we can choose from many methods
-
-distance_matrix <- get_dist(matrix_subset, method = "euclidean")
-
-
-fviz_dist(distance_matrix, gradient = list(low = "blue", mid = "white", high = "red"))
-
-fviz_nbclust(matrix_subset, pam, method = "wss")
-fviz_nbclust(matrix_subset, pam, method = "silhouette")
-fviz_nbclust(matrix_subset, pam, method = "gap_stat")
-
-set.seed(4167)
-resnumclust <- NbClust(matrix_subset, min.nc = 2, method = "median", index = "all")
-
-saveRDS(resnumclust, "nr_of_clusters_with_rel.rds")
-
-fviz_nbclust(resnumclust)
-
-# Use PAM method
-
-set.seed(4167)
-pam3 <- pam(matrix_subset, 2)
-
-fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
-
-data_scaled_df <- as_tibble(matrix_subset)
-data_scaled_df$cluster <- as_factor(pam3$clustering)
-data_scaled_df_long <- data_scaled_df %>% pivot_longer(cols = q01_gender:PHQ8, names_to = "variable", values_to = "value")
-
-(ggplot(data_scaled_df_long, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+(ggplot(pooled_df, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
   stat_summary(geom = "point",
                fun = mean,
                size = 3
@@ -117,7 +121,31 @@ data_scaled_df_long <- data_scaled_df %>% pivot_longer(cols = q01_gender:PHQ8, n
   ggtitle("Average value of selected variables per cluster") +
   theme_bw() +
   ylab("relative value")) %>% ggplotly()
+```
 
+
+```{r, message=FALSE, warning=FALSE}
+# # identify all factor columns
+# x <- sapply(matrix_subset, is.factor)
+# matrix_subset[ , x] <- sapply(matrix_subset[ , x], MARGIN = 2, as.numeric)
+# matrix_subset <- sapply(matrix_subset, as.integer) %>% scale()
+
+# Calculate the matrix of distance, we can choose from many methods
+
+fviz_dist(distance_matrix, gradient = list(low = "blue", mid = "white", high = "red"))
+fviz_nbclust(matrix_subset, pam, method = "wss")
+fviz_nbclust(matrix_subset, pam, method = "silhouette")
+fviz_nbclust(matrix_subset, pam, method = "gap_stat")
+
+fviz_nbclust(resnumclust)
+
+
+fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+# Cluster validation
 
 intern <- clValid(matrix_subset,
                   nClust = 2:15,
