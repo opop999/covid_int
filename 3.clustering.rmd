@@ -19,7 +19,7 @@ output:
 
 ```{r loading packages and dataset, message=FALSE, warning=FALSE}
 # Package names
-packages <- c("dplyr", "tidyr", "forcats", "fpc", "NbClust", "factoextra", "cluster", "clValid", "mice", "miclust", "plotly")
+packages <- c("dplyr", "tidyr", "NbClust", "factoextra", "cluster", "clValid", "mice", "plotly")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -60,12 +60,22 @@ for (o in seq_len(imputed_df$m)) {
  }
   saveRDS(nr_clust, "data/nr_clust.rds")
 }
+```
 
+
+```{r}
 # Two clusters as a recommended number seems to win with every imputed dataset
-optimal_nr_of_clusters <- readRDS("data/nr_clust.rds") %>% bind_rows()
+# Function to determine mode of a vector
+getmode <- function(v) {
+ uniqv <- unique(v)
+ uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+optimal_nr_of_clusters <- readRDS("data/nr_clust.rds") %>% bind_rows() %>% rowwise() %>% mutate(mode_of_all = getmode(c(frey, mcclain, cindex, silhouette, dunn)))
 ```
 
 ```{r}
+# Run cluster analysis using k-medoids for each of the 5 imputed datasets
 list_imp_dfs <- complete(imputed_df, action = "all", include = "FALSE")
 list_imp_dfs_no_fct <- complete(imputed_df_no_fct, action = "all", include = "FALSE")
 list_cl_dfs <- vector(mode = "list", length = imputed_df$m)
@@ -88,12 +98,11 @@ list_clustered_dfs[[i]] <- list_imp_dfs_no_fct[[i]] %>%
 }
 
 saveRDS(list_cl_dfs, "data/list_clustered_dfs.rds")
+```
 
-# Function to determine mode of a vector
-getmode <- function(v) {
- uniqv <- unique(v)
- uniqv[which.max(tabulate(match(v, uniqv)))]
-}
+
+```{r}
+# Pool imputed datasets together
 
 pooled_df <- tibble(variable = list_cl_dfs[[1]][[2]],
              value = rowMeans(cbind(list_cl_dfs[[1]][[3]], list_cl_dfs[[2]][[3]], list_cl_dfs[[3]][[3]], list_cl_dfs[[4]][[3]], list_cl_dfs[[5]][[3]])),
