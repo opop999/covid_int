@@ -19,7 +19,7 @@ output:
 
 ```{r loading packages and dataset, message=FALSE, warning=FALSE}
 # Package names
-packages <- c("dplyr", "tidyr", "NbClust", "factoextra", "cluster", "clValid", "mice", "plotly", "viridis")
+packages <- c("dplyr", "tidyr", "NbClust", "factoextra", "cluster", "clValid", "mice", "plotly", "viridis", "fpc", "tibble", "Rtsne")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -41,8 +41,10 @@ getmode <- function(v) {
 
 ```
 
+# Determination of the optimal number of clusters within our sample
+
 ```{r}
-# Determine optimal number of cluster using 5 algoritms across 5 imputed datasets
+# Determine optimal number of cluster using 5 algorithms across 5 imputed datasets
 # These algorithms are compatible with Gower's distance method, which is preferred
 # for mixed data
 indexes <- c("frey", "mcclain", "cindex", "silhouette", "dunn")
@@ -61,13 +63,20 @@ for (o in seq_len(imputed_df$m)) {
  for (i in seq_along(indexes)) {
   
   set.seed(4167)
-  nr_clust[[o]][indexes[i]] <- NbClust(diss = distance_matrix, distance = NULL, min.nc = 2, method = "median", index = indexes[i])[["Best.nc"]][["Number_clusters"]]
+  nr_clust[[o]][indexes[i]] <- NbClust(diss = distance_matrix, distance = NULL, min.nc = 2, max.nc = 15, method = "median", index = indexes[i])[["Best.nc"]][["Number_clusters"]]
 
  }
   saveRDS(nr_clust, "data/nr_clust.rds")
   print(paste("Imputed dataset nr.", o, "was evaluated"))
 
 }
+```
+
+```{r}
+# Two clusters as a recommended number seems to win with every imputed dataset
+
+optimal_nr_of_clusters <- readRDS("data/nr_clust.rds") %>% bind_rows() %>% rowwise() %>% mutate(mode_of_all = getmode(c(frey, mcclain, cindex, silhouette, dunn)))
+
 ```
 
 ```{r}
@@ -100,21 +109,17 @@ for (o in seq_len(imputed_df$m)) {
 ```
 
 
-
-
-```{r}
-# Two clusters as a recommended number seems to win with every imputed dataset
-
-optimal_nr_of_clusters <- readRDS("data/nr_clust.rds") %>% bind_rows() %>% rowwise() %>% mutate(mode_of_all = getmode(c(frey, mcclain, cindex, silhouette, dunn)))
-
-```
+# K-Medoids cluster analysis
 
 ```{r}
 # Run cluster analysis using k-medoids for each of the 5 imputed datasets
 list_imp_dfs <- complete(imputed_df, action = "all", include = "FALSE")
 list_imp_dfs_no_fct <- complete(imputed_df_no_fct, action = "all", include = "FALSE")
-list_cl_dfs <- vector(mode = "list", length = imputed_df$m)
-nr_clust <- 14
+list_cl_dfs <- list()
+nr_clust <- c(2,3,4,5)
+clust_eval_stats <- list()
+
+for (o in nr_clust) { 
 
 for (i in seq_len(imputed_df$m)) {
   
@@ -122,60 +127,55 @@ for (i in seq_len(imputed_df$m)) {
   distance_matrix_gower <- daisy(list_imp_dfs[[i]], metric = "gower")
   # Cluster with PAM algorithm
   set.seed(4167)
-  pam_clust <- pam(distance_matrix_gower, nr_clust, diss = TRUE)
+  pam_clust <- pam(distance_matrix_gower, k = o, diss = TRUE)
+  
+  clust_eval_stats[[paste0("clusters_", as.character(o))]][[i]] <- cluster.stats(d = distance_matrix_gower, clustering = pam_clust$clustering)
 
-list_cl_dfs[[i]] <- list_imp_dfs_no_fct[[i]] %>%
+list_cl_dfs[[paste0("clusters_", as.character(o))]][[i]] <- list_imp_dfs_no_fct[[i]] %>%
   scale() %>%
   as_tibble() %>%
   bind_cols(cluster = pam_clust$clustering) %>% 
   pivot_longer(cols = !cluster, names_to = "variable", values_to = "value")
 
 }
+  
+# Add pooled dataset for every cluster
+list_cl_dfs[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
+  variable = list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[2]],
+  value = rowMeans(cbind(list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[2]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[3]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[4]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[5]][[3]])),
+  cluster = tibble(df_1 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[1]], df_2 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[2]][[1]], df_3 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[3]][[1]], df_4 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[4]][[1]], df_5 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[5]][[1]]) %>%
+    rowwise() %>%
+    transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
+    pull(mode_of_all)
+)
 
-saveRDS(list_cl_dfs, "data/list_clustered_dfs_14.rds")
+# Pool imputed eval stats together
+clust_eval_stats[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
+  dunn_1 = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$dunn))), dunn_2 = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$dunn2))),
+  silhouette_wdt = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$avg.silwidth))), pearson_gamma = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$pearsongamma))), sep_index = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$sindex))), ch_index = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$ch))), avg_within = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$average.within))), avg_between = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$average.between))), widest_gap = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$widestgap)))
+)
+
+
+}
+
+saveRDS(list_cl_dfs, "data/list_clustered_dfs.rds")
+saveRDS(clust_eval_stats, "data/clust_eval_stats.rds")
+
 ```
 
+# Internal cluster validation
 
 ```{r}
-# Pool imputed datasets together
-
-list_cl_dfs <- readRDS("data/list_clustered_dfs.rds")
-
-pooled_df_2 <- tibble(variable = list_cl_dfs[[1]][[2]],
-             value = rowMeans(cbind(list_cl_dfs[[1]][[3]], list_cl_dfs[[2]][[3]], list_cl_dfs[[3]][[3]], list_cl_dfs[[4]][[3]], list_cl_dfs[[5]][[3]])),
-             cluster = tibble(df_1 = list_cl_dfs[[1]][[1]], df_2 = list_cl_dfs[[2]][[1]], df_3 = list_cl_dfs[[3]][[1]], df_4 = list_cl_dfs[[4]][[1]], df_5 = list_cl_dfs[[5]][[1]]) %>%
-             rowwise() %>% 
-             transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
-             pull(mode_of_all)
-)
-
-list_cl_dfs <- readRDS("data/list_clustered_dfs_3.rds")
-
-pooled_df_3 <- tibble(variable = list_cl_dfs[[1]][[2]],
-             value = rowMeans(cbind(list_cl_dfs[[1]][[3]], list_cl_dfs[[2]][[3]], list_cl_dfs[[3]][[3]], list_cl_dfs[[4]][[3]], list_cl_dfs[[5]][[3]])),
-             cluster = tibble(df_1 = list_cl_dfs[[1]][[1]], df_2 = list_cl_dfs[[2]][[1]], df_3 = list_cl_dfs[[3]][[1]], df_4 = list_cl_dfs[[4]][[1]], df_5 = list_cl_dfs[[5]][[1]]) %>%
-             rowwise() %>% 
-             transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
-             pull(mode_of_all)
-)
-
-list_cl_dfs <- readRDS("data/list_clustered_dfs_14.rds")
-
-pooled_df_14 <- tibble(variable = list_cl_dfs[[1]][[2]],
-             value = rowMeans(cbind(list_cl_dfs[[1]][[3]], list_cl_dfs[[2]][[3]], list_cl_dfs[[3]][[3]], list_cl_dfs[[4]][[3]], list_cl_dfs[[5]][[3]])),
-             cluster = tibble(df_1 = list_cl_dfs[[1]][[1]], df_2 = list_cl_dfs[[2]][[1]], df_3 = list_cl_dfs[[3]][[1]], df_4 = list_cl_dfs[[4]][[1]], df_5 = list_cl_dfs[[5]][[1]]) %>%
-             rowwise() %>% 
-             transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
-             pull(mode_of_all)
-)
+compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x) x$pooled)) %>% rownames_to_column(var = "cluster_size")
 
 ```
 
+# Interpretation of clusters using relative values for each variable
 
 ```{r, message=FALSE, warning=FALSE}
 # Cluster visualization for 2 clusters
 
-(ggplot(pooled_df_2, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
+(ggplot(list_cl_dfs$`3_clusters`$pooled, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
   stat_summary(geom = "point",
                fun = mean,
                size = 3
@@ -189,72 +189,21 @@ pooled_df_14 <- tibble(variable = list_cl_dfs[[1]][[2]],
 
 ```
 
-```{r, message=FALSE, warning=FALSE}
-# Cluster visualization for 3 clusters
+```{r}
+# t-Distributed Stochastic Neighbor Embedding visualization
+distance_matrix_gower <- daisy(iris)
+set.seed(4167)
+pam_clust <- pam(distance_matrix_gower, k = 3, diss = TRUE)
 
-(ggplot(pooled_df_3, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
-  stat_summary(geom = "point",
-               fun = mean,
-               size = 3
-               # aes(shape = cluster)
-               ) +
-  stat_summary(geom = "line", fun = mean) +
-  scale_color_viridis(discrete = TRUE) +
-  ggtitle("Average value of selected variables per cluster") +
-  theme_bw() +
-  ylab("relative value")) %>% ggplotly()
+tsne_obj <- Rtsne(distance_matrix_gower, is_distance = TRUE)
 
-```
+tsne_data <- tsne_obj$Y %>%
+  data.frame() %>%
+  setNames(c("X", "Y")) %>%
+  mutate(cluster = factor(pam_clust$clustering))
 
-```{r, message=FALSE, warning=FALSE}
-# Cluster visualization for 3 clusters
-
-(ggplot(pooled_df_14, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
-  stat_summary(geom = "point",
-               fun = mean,
-               size = 3
-               # aes(shape = cluster)
-               ) +
-  stat_summary(geom = "line", fun = mean) +
-  scale_color_viridis(discrete = TRUE) +
-  ggtitle("Average value of selected variables per cluster") +
-  theme_bw() +
-  ylab("relative value")) %>% ggplotly()
+ggplot(aes(x = X, y = Y), data = tsne_data) +
+  geom_point(aes(color = cluster))
 
 ```
-
-
-
-
-
-```{r, message=FALSE, warning=FALSE}
-# # identify all factor columns
-# x <- sapply(matrix_subset, is.factor)
-# matrix_subset[ , x] <- sapply(matrix_subset[ , x], MARGIN = 2, as.numeric)
-# matrix_subset <- sapply(matrix_subset, as.integer) %>% scale()
-
-# Calculate the matrix of distance, we can choose from many methods
-
-fviz_dist(distance_matrix, gradient = list(low = "blue", mid = "white", high = "red"))
-
-fviz_nbclust(resnumclust)
-
-
-fviz_cluster(pam3, data = matrix_subset, ellipse.type = "norm", ggtheme = theme_bw(), main = "Cluster plot - K-Medoids algorithm")
-```
-
-
-```{r, message=FALSE, warning=FALSE}
-# Cluster validation
-
-intern <- clValid(matrix_subset,
-                  nClust = 2:15,
-                  clMethods = c("hierarchical", "kmeans", "pam"),
-                  validation = c("internal", "stability"))
-
-summary(intern) %>% kable() %>% kable_styling()
-
-```
-
-
 
