@@ -65,6 +65,8 @@ for (o in seq_len(imputed_df$m)) {
 
  }
   saveRDS(nr_clust, "data/nr_clust.rds")
+  print(paste("Imputed dataset nr.", o, "was evaluated"))
+
 }
 ```
 
@@ -81,8 +83,8 @@ for (o in seq_len(imputed_df$m)) {
     nr_clust <- vector(mode = "list", length = imputed_df$m)
   }
   
-  distance_matrix <- daisy(head(complete(imputed_df, o), 500), metric = "gower")
-  matrix_subset <- head(scale(complete(imputed_df_no_fct, o)), 500)
+  distance_matrix <- daisy(complete(imputed_df, o), metric = "gower")
+  matrix_subset <- scale(complete(imputed_df_no_fct, o))
   
  for (i in seq_along(eval_methods)) {
   
@@ -92,6 +94,7 @@ for (o in seq_len(imputed_df$m)) {
  } 
   
   saveRDS(nr_clust, "data/nr_clust_viz.rds")
+  print(paste("Imputed dataset nr.", o, "was evaluated"))
 }
 
 ```
