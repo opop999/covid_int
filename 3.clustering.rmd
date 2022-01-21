@@ -108,70 +108,91 @@ for (o in seq_len(imputed_df$m)) {
 
 ```
 
-
 # K-Medoids cluster analysis
-
 ```{r}
 # Run cluster analysis using k-medoids for each of the 5 imputed datasets
 list_imp_dfs <- complete(imputed_df, action = "all", include = "FALSE")
 list_imp_dfs_no_fct <- complete(imputed_df_no_fct, action = "all", include = "FALSE")
-list_cl_dfs <- list()
-nr_clust <- c(2,3,4,5)
-clust_eval_stats <- list()
+nr_clust <- c(2:15)
+list_cl_dfs <- setNames(vector("list", length(nr_clust)), paste0("clusters_", nr_clust))
+clust_eval_stats <- setNames(vector("list", length(nr_clust)), paste0("clusters_", nr_clust))
+clust_tsne_data <- setNames(vector("list", length(nr_clust)), paste0("clusters_", nr_clust))
 
-for (o in nr_clust) { 
+# Outer loop for each cluster configuration
+for (o in nr_clust) {
 
-for (i in seq_len(imputed_df$m)) {
-  
-  # Calculate the matrix of distance
-  distance_matrix_gower <- daisy(list_imp_dfs[[i]], metric = "gower")
-  # Cluster with PAM algorithm
-  set.seed(4167)
-  pam_clust <- pam(distance_matrix_gower, k = o, diss = TRUE)
-  
-  clust_eval_stats[[paste0("clusters_", as.character(o))]][[i]] <- cluster.stats(d = distance_matrix_gower, clustering = pam_clust$clustering)
+  # Inner loop for each imputed dataset within cluster configuration
+  for (i in seq_len(imputed_df$m)) {
 
-list_cl_dfs[[paste0("clusters_", as.character(o))]][[i]] <- list_imp_dfs_no_fct[[i]] %>%
-  scale() %>%
-  as_tibble() %>%
-  bind_cols(cluster = pam_clust$clustering) %>% 
-  pivot_longer(cols = !cluster, names_to = "variable", values_to = "value")
+    # Calculate the matrix of distance
+    distance_matrix_gower <- daisy(list_imp_dfs[[i]], metric = "gower")
 
-}
-  
-# Add pooled dataset for every cluster
-list_cl_dfs[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
-  variable = list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[2]],
-  value = rowMeans(cbind(list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[2]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[3]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[4]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[5]][[3]])),
-  cluster = tibble(df_1 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[1]], df_2 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[2]][[1]], df_3 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[3]][[1]], df_4 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[4]][[1]], df_5 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[5]][[1]]) %>%
-    rowwise() %>%
-    transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
-    pull(mode_of_all)
-)
+    # Cluster with PAM algorithm
+    set.seed(4167)
+    pam_clust <- pam(distance_matrix_gower, k = o, diss = TRUE)
 
-# Pool imputed eval stats together
-clust_eval_stats[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
-  dunn_1 = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$dunn))), dunn_2 = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$dunn2))),
-  silhouette_wdt = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$avg.silwidth))), pearson_gamma = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$pearsongamma))), sep_index = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$sindex))), ch_index = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$ch))), avg_within = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$average.within))), avg_between = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$average.between))), widest_gap = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$widestgap)))
-)
+    # Evaluate and save cluster stats for each imputed dataset
+    clust_eval_stats[[paste0("clusters_", as.character(o))]][[i]] <- cluster.stats(d = distance_matrix_gower, clustering = pam_clust$clustering)
 
 
+    tsne_obj <- Rtsne(distance_matrix_gower, is_distance = TRUE)
+
+    clust_tsne_data[[paste0("clusters_", as.character(o))]][[i]] <- tsne_obj$Y %>%
+      data.frame() %>%
+      setNames(c("X", "Y")) %>%
+      mutate(cluster = factor(pam_clust$clustering))
+
+
+    # Transform each imputed dataset to a long form
+    list_cl_dfs[[paste0("clusters_", as.character(o))]][[i]] <- list_imp_dfs_no_fct[[i]] %>%
+      scale() %>%
+      as_tibble() %>%
+      bind_cols(cluster = pam_clust$clustering) %>%
+      pivot_longer(cols = !cluster, names_to = "variable", values_to = "value")
+
+    print(paste("imputed dataset nr.", i, "was clustered with", o, "clusters"))
+  }
+
+  # Add pooled dataset for every cluster
+  list_cl_dfs[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
+    variable = list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[2]],
+    value = rowMeans(cbind(list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[2]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[3]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[4]][[3]], list_cl_dfs[[paste0("clusters_", as.character(o))]][[5]][[3]])),
+    cluster = tibble(df_1 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[1]][[1]], df_2 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[2]][[1]], df_3 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[3]][[1]], df_4 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[4]][[1]], df_5 = list_cl_dfs[[paste0("clusters_", as.character(o))]][[5]][[1]]) %>%
+      rowwise() %>%
+      transmute(mode_of_all = getmode(c(df_1, df_2, df_3, df_4, df_5))) %>%
+      pull(mode_of_all)
+  )
+
+  # Pool imputed eval stats together
+  clust_eval_stats[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
+    dunn_1 = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$dunn))), dunn_2 = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$dunn2))),
+    silhouette_wdt = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$avg.silwidth))), pearson_gamma = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$pearsongamma))), sep_index = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$sindex))), ch_index = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$ch))), avg_within = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$average.within))), avg_between = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$average.between))), widest_gap = mean(unlist(lapply(clust_eval_stats[[paste0("clusters_", as.character(o))]], function(x) x$widestgap)))
+  )
+
+  # Pool t-NSE data together
+  clust_tsne_data[[paste0("clusters_", as.character(o))]][["pooled"]] <- tibble(
+    X = rowMeans(cbind(
+      clust_tsne_data[[paste0("clusters_", as.character(o))]][[1]][["X"]], clust_tsne_data[[paste0("clusters_", as.character(o))]][[2]][["X"]],
+      clust_tsne_data[[paste0("clusters_", as.character(o))]][[3]][["X"]], clust_tsne_data[[paste0("clusters_", as.character(o))]][[4]][["X"]], clust_tsne_data[[paste0("clusters_", as.character(o))]][[5]][["X"]]
+    )),
+    Y = rowMeans(cbind(
+      clust_tsne_data[[paste0("clusters_", as.character(o))]][[1]][["Y"]], clust_tsne_data[[paste0("clusters_", as.character(o))]][[2]][["Y"]],
+      clust_tsne_data[[paste0("clusters_", as.character(o))]][[3]][["Y"]], clust_tsne_data[[paste0("clusters_", as.character(o))]][[4]][["Y"]], clust_tsne_data[[paste0("clusters_", as.character(o))]][[5]][["Y"]]
+    )),
+    cluster = tibble(df_1 = clust_tsne_data[[paste0("clusters_", as.character(o))]][[1]][["cluster"]], df_2 = clust_tsne_data[[paste0("clusters_", as.character(o))]][[2]][["cluster"]], df_3 = clust_tsne_data[[paste0("clusters_", as.character(o))]][[3]][["cluster"]], df_4 = clust_tsne_data[[paste0("clusters_", as.character(o))]][[4]][["cluster"]], df_5 = clust_tsne_data[[paste0("clusters_", as.character(o))]][[5]][["cluster"]]) %>%
+      rowwise() %>%
+      transmute(mode_of_all = getmode(c(df_1, df_2))) %>%
+      pull(mode_of_all)
+  )
 }
 
 saveRDS(list_cl_dfs, "data/list_clustered_dfs.rds")
 saveRDS(clust_eval_stats, "data/clust_eval_stats.rds")
-
-```
-
-# Internal cluster validation
-
-```{r}
-compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x) x$pooled)) %>% rownames_to_column(var = "cluster_size")
+saveRDS(clust_tsne_data, "data/clust_tsne_data.rds")
 
 ```
 
 # Interpretation of clusters using relative values for each variable
-
 ```{r, message=FALSE, warning=FALSE}
 # Cluster visualization for 2 clusters
 
@@ -189,21 +210,14 @@ compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x
 
 ```
 
+# Internal cluster validation
 ```{r}
+# Create table with parameters for each cluster size
+compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x) x$pooled)) %>% rownames_to_column(var = "cluster_size")
+
 # t-Distributed Stochastic Neighbor Embedding visualization
-distance_matrix_gower <- daisy(iris)
-set.seed(4167)
-pam_clust <- pam(distance_matrix_gower, k = 3, diss = TRUE)
-
-tsne_obj <- Rtsne(distance_matrix_gower, is_distance = TRUE)
-
-tsne_data <- tsne_obj$Y %>%
-  data.frame() %>%
-  setNames(c("X", "Y")) %>%
-  mutate(cluster = factor(pam_clust$clustering))
-
-ggplot(aes(x = X, y = Y), data = tsne_data) +
-  geom_point(aes(color = cluster))
+  ggplot(aes(x = X, y = Y), data = clust_tsne_data$clusters_2[["pooled"]]) +
+    geom_point(aes(color = cluster))
 
 ```
 
