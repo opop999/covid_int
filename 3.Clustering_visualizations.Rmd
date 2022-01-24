@@ -9,7 +9,7 @@ output:
     theme: readable
     code_folding: hide
     code_download: true
-    css: doc.css
+    css: docs/style.css
     includes:
       in_header: docs/header.html
 ---
