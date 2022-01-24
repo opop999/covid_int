@@ -194,9 +194,9 @@ saveRDS(clust_tsne_data, "data/clust_tsne_data.rds")
 
 # Interpretation of clusters using relative values for each variable
 ```{r, message=FALSE, warning=FALSE}
-# Cluster visualization for 2 clusters
+# Cluster visualization for k clusters
 
-(ggplot(list_cl_dfs$`3_clusters`$pooled, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
+(ggplot(list_cl_dfs$clusters_3$pooled, aes(x = variable, y = value, group = as.factor(cluster), colour = as.factor(cluster))) +
   stat_summary(geom = "point",
                fun = mean,
                size = 3
@@ -214,10 +214,12 @@ saveRDS(clust_tsne_data, "data/clust_tsne_data.rds")
 ```{r}
 # Create table with parameters for each cluster size
 compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x) x$pooled)) %>% rownames_to_column(var = "cluster_size")
+```
 
+
+```{r}
 # t-Distributed Stochastic Neighbor Embedding visualization
-  ggplot(aes(x = X, y = Y), data = clust_tsne_data$clusters_2[["pooled"]]) +
-    geom_point(aes(color = cluster))
-
+  ggplot(aes(x = X, y = Y), data = clust_tsne_data$clusters_5[["pooled"]]) +
+    geom_point(aes(color = as.factor(cluster)))
 ```
 
