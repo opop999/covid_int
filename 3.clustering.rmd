@@ -13,13 +13,13 @@ output:
     code_folding: hide
     code_download: true
     includes:
-      in_header: header.html
+      in_header: docs/header.html
 ---
 
 
 ```{r loading packages and dataset, message=FALSE, warning=FALSE}
 # Package names
-packages <- c("dplyr", "tidyr", "NbClust", "factoextra", "cluster", "clValid", "mice", "plotly", "viridis", "fpc", "tibble", "Rtsne")
+packages <- c("dplyr", "tidyr", "NbClust", "factoextra", "cluster", "clValid", "mice", "plotly", "viridis", "fpc", "tibble", "Rtsne", "DT", "crosstalk")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -213,13 +213,104 @@ saveRDS(clust_tsne_data, "data/clust_tsne_data.rds")
 # Internal cluster validation
 ```{r}
 # Create table with parameters for each cluster size
+clust_eval_stats <- readRDS("data/clust_eval_stats.rds")
+clust_tsne_data <- readRDS("data/clust_tsne_data.rds")
+                           
 compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x) x$pooled)) %>% rownames_to_column(var = "cluster_size")
+
+# Create interactive table using the DT package (R interface to JavaScript DataTables library)
+clust_valid_interactive <- datatable(compare_cluster_validation,
+                                     caption = htmltools::tags$caption(
+        style = 'caption-side: top; text-align: center; color:black; font-weight: bold;
+        font-size:130%; padding: 0px 0px 25px 0px;', "Cluster validation statistics for different cluster sizes"),
+        options = list(
+  pageLength = 20,
+    initComplete = JS(
+    "function(settings, json) {",
+    "$(this.api().table().header()).css({'background-color': '#4C535D', 'color': '#fff'});",
+    "}")
+)) %>%
+  formatRound(c("dunn_2", "silhouette_wdt", "widest_gap", "pearson_gamma", "sep_index", "avg_within", "avg_between"), 3) %>% 
+  formatRound(c("dunn_1"), 4) %>%
+  formatRound(c("ch_index"), 0) %>%
+  formatStyle("cluster_size", fontWeight = "bold")
+
+# compare_cluster_validation
+
+saveWidget(clust_valid_interactive, "docs/clust_valid_interactive.html")
+```
+
+```{r}
+sd <- SharedData$new(compare_cluster_validation, key = ~cluster_size)
+
+interactive_table <- datatable(sd, height = "100%", caption = htmltools::tags$caption(
+        style = 'caption-side: top; text-align: center; color:black; font-weight: bold;
+        font-size:130%; margin: 0px 0px 25px 0px;', "Cluster validation statistics for different cluster sizes"),
+        options = list(
+        dom = "t",
+        pageLength = 20,
+    initComplete = JS(
+    "function(settings, json) {",
+    "$(this.api().table().header()).css({'background-color': '#4C535D', 'color': '#fff'});",
+    "}")
+)) %>%
+  formatRound(c("dunn_2", "silhouette_wdt", "widest_gap", "pearson_gamma", "sep_index", "avg_within", "avg_between"), 3) %>% 
+  formatRound(c("dunn_1"), 4) %>%
+  formatRound(c("ch_index"), 0) %>%
+  formatStyle("cluster_size", fontWeight = "bold")
+
+widget_1 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~dunn_1, type = "bar"), device = "lg"
+)
+widget_2 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~dunn_2, type = "bar"), device = "lg"
+)
+widget_3 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~silhouette_wdt, type = "bar"), device = "lg"
+)
+widget_4 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~pearson_gamma, type = "bar"), device = "lg"
+)
+widget_5 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~sep_index, type = "bar"), device = "lg"
+)
+widget_6 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~ch_index, type = "bar"), device = "lg"
+)
+widget_7 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~avg_within, type = "bar"), device = "lg"
+)
+widget_8 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~avg_between, type = "bar"), device = "lg"
+)
+widget_9 <- bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~widest_gap, type = "bar"), device = "lg"
+)
+
+htmltools::save_html(htmltools::tagList(widget_1, hr(style = "margin: 50px;"), widget_2, hr(style = "margin: 50px;"), widget_3, hr(style = "margin: 50px;"), widget_4, hr(style = "margin: 50px;"), widget_5, hr(style = "margin: 50px;"), widget_6, hr(style = "margin: 50px;"), widget_7, hr(style = "margin: 50px;"), widget_8, hr(style = "margin: 50px;"), widget_9), file = "test.html")
+
 ```
 
 
 ```{r}
+
+clust_tsne_data_long <- lapply(clust_tsne_data, function(x) x$pooled) %>% bind_rows(.id = "cluster_config") %>% mutate(cluster = as.factor(cluster), cluster_config = factor(cluster_config, levels = c(paste0("clusters_", 2:15))))
+
 # t-Distributed Stochastic Neighbor Embedding visualization
-  ggplot(aes(x = X, y = Y), data = clust_tsne_data$clusters_5[["pooled"]]) +
-    geom_point(aes(color = as.factor(cluster)))
+  ggplot(aes(x = X, y = Y), data = clust_tsne_data_long) +
+    geom_point(aes(color = cluster)) + 
+    # scale_color_viridis(discrete = TRUE) +
+    facet_wrap(~ cluster_config)
+
+    
 ```
 

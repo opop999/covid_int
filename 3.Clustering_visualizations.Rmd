@@ -1,0 +1,399 @@
+---
+title: "Predictors of Depression During the Covid-19 Pandemic" 
+subtitle: "K-Medoids Clustering part 2: Cluster Visuals"
+author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio"
+date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
+output:
+  html_document: 
+    number_sections: true
+    theme: readable
+    code_folding: hide
+    code_download: true
+    css: doc.css
+    includes:
+      in_header: docs/header.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r include=FALSE}
+# Package names
+packages <- c("dplyr", "tidyr", "NbClust", "factoextra", "cluster", "clValid", "mice", "plotly", "viridis", "fpc", "tibble", "Rtsne", "DT", "crosstalk")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+```{r include=FALSE}
+clust_eval_stats <- readRDS("data/clust_eval_stats.rds")
+clust_tsne_data <- readRDS("data/clust_tsne_data.rds")
+list_cl_dfs <- readRDS("data/list_clustered_dfs.rds") 
+list_cl_dfs <- lapply(list_cl_dfs, function(x) x$pooled)
+
+for (i in seq_along(list_cl_dfs)) { list_cl_dfs[[i]][["cluster"]] <- as.factor(list_cl_dfs[[i]][["cluster"]])}
+                           
+compare_cluster_validation <- do.call(rbind, lapply(clust_eval_stats, function(x) x$pooled)) %>% rownames_to_column(var = "cluster_size")
+
+clust_tsne_data_long <- lapply(clust_tsne_data, function(x) x$pooled) %>% bind_rows(.id = "cluster_config") %>% mutate(cluster = as.factor(cluster), cluster_config = factor(cluster_config, levels = c(paste0("clusters_", 2:15))))
+```
+
+# Cluster validation statistics for different cluster sizes {.tabset .tabset-pills}
+
+```{r include=FALSE}
+sd <- SharedData$new(compare_cluster_validation, key = ~cluster_size)
+
+interactive_table <- datatable(sd, height = "100%",
+        options = list(
+        dom = "t",
+        pageLength = 20,
+    initComplete = JS(
+    "function(settings, json) {",
+    "$(this.api().table().header()).css({'background-color': '#4C535D', 'color': '#fff'});",
+    "}")
+)) %>%
+  formatRound(c("dunn_2", "silhouette_wdt", "widest_gap", "pearson_gamma", "sep_index", "avg_within", "avg_between"), 3) %>% 
+  formatRound(c("dunn_1"), 4) %>%
+  formatRound(c("ch_index"), 0) %>%
+  formatStyle("cluster_size", fontWeight = "bold")
+
+clust_tsne_data_long <- lapply(clust_tsne_data, function(x) x$pooled) %>% bind_rows(.id = "cluster_config") %>% mutate(cluster = as.factor(cluster), cluster_config = factor(cluster_config, levels = c(paste0("clusters_", 2:15))))
+```
+
+## Dunn index 1 (higher better)
+	
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~dunn_1, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Dunn index 2 (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~dunn_2, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Average Silhoutte Width (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~silhouette_wdt, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Pearson Gamma (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~pearson_gamma, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Separation Index (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~sep_index, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Calinski & Harabasz index (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~ch_index, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Avg. distance within clusters (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~avg_within, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Avg. distance between clusters (higher better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~avg_between, type = "bar"), device = "lg"
+)
+```
+
+---
+
+## Widest within-cluster gap (lower better)
+
+```{r}
+bscols(
+  widths = c(8, 4),
+  interactive_table, plot_ly(sd, x = ~cluster_size, y = ~widest_gap, type = "bar"), device = "lg"
+)
+
+```
+
+---
+
+# t-SNE Visualization for different cluster sizes
+
+```{r fig.height=20, fig.width=20}
+
+# t-Distributed Stochastic Neighbor Embedding visualization
+  ggplot(aes(x = X, y = Y), data = clust_tsne_data_long) +
+    geom_point(aes(color = cluster)) + 
+    # scale_color_viridis(discrete = TRUE) +
+    facet_wrap(~ cluster_config)
+```
+
+---
+
+# Interpretation of clusters using relative values for each variable {.tabset .tabset-pills}
+
+## 2 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_2, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 3 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_3, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 4 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_4, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 5 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_5, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 6 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_6, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 7 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_7, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 8 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_8, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 9 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_9, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 10 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_10, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 11 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_11, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 12 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_12, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 13 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_13, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 14 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_14, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+## 15 clusters
+```{r fig.height=12, fig.width=20}
+# Cluster visualization for k clusters
+(ggplot(list_cl_dfs$clusters_15, aes(x = variable, y = value, group = cluster, colour = cluster)) +
+  stat_summary(geom = "point",
+               fun = mean,
+               size = 3) +
+  stat_summary(geom = "line", fun = mean) +
+  scale_color_viridis(discrete = TRUE) +
+  ggtitle("Average value of selected variables per cluster") +
+  theme_bw() +
+  ylab("relative value")) %>% ggplotly()
+
+```
+
+
+
+
+
